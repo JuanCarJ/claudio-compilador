@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Play, Loader2, FileCode, Braces, Table2 } from "lucide-react";
+import { Play, Loader2, FileCode, Braces, Table2, LayoutGrid } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -28,6 +28,7 @@ interface ToolbarProps {
   onProgramChange: (name: string) => void;
   onAnalyze: () => void;
   isLoading: boolean;
+  onOpenGallery?: () => void;
 }
 
 const METHODS: { value: AnalysisMethod; label: string; shortLabel: string; icon: typeof FileCode; tooltip: string }[] = [
@@ -44,6 +45,7 @@ export function Toolbar({
   onProgramChange,
   onAnalyze,
   isLoading,
+  onOpenGallery,
 }: ToolbarProps) {
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -132,27 +134,39 @@ export function Toolbar({
 
       {/* Program selector */}
       {programKeys.length > 0 && (
-        <Select value={selectedProgram} onValueChange={(v) => { if (v) onProgramChange(v); }}>
-          <SelectTrigger
-            size="sm"
-            className="w-[200px] max-w-[240px]"
-            style={{ borderColor: "var(--color-border)", color: "var(--color-text)" }}
-            aria-label="Programa de ejemplo"
-          >
-            <SelectValue>
-              {selectedProgram || "Programas de ejemplo..."}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent
-            style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}
-          >
-            {programKeys.map((name) => (
-              <SelectItem key={name} value={name}>
-                {name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <>
+          <Select value={selectedProgram} onValueChange={(v) => { if (v) onProgramChange(v); }}>
+            <SelectTrigger
+              size="sm"
+              className="w-[200px] max-w-[240px]"
+              style={{ borderColor: "var(--color-border)", color: "var(--color-text)" }}
+              aria-label="Programa de ejemplo"
+            >
+              <SelectValue>
+                {selectedProgram || "Programas de ejemplo..."}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent
+              style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}
+            >
+              {programKeys.map((name) => (
+                <SelectItem key={name} value={name}>
+                  {name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {onOpenGallery && (
+            <button
+              onClick={onOpenGallery}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-[0.7rem] font-medium cursor-pointer transition-colors"
+              style={{ color: "var(--color-muted)", backgroundColor: "var(--color-surface-2)" }}
+              title="Ver galeria de programas"
+            >
+              <LayoutGrid className="size-3" />
+            </button>
+          )}
+        </>
       )}
 
       <div className="flex-1" />

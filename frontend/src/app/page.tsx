@@ -16,6 +16,8 @@ import {
   type LL1Response,
   type TraducirResponse,
 } from "@/lib/api";
+import { GrammarPanel } from "@/components/grammar-panel";
+import { ProgramGallery } from "@/components/program-gallery";
 
 const DEFAULT_CODE = `// Escribe codigo en Claudio o selecciona un programa de ejemplo
 var entero x = 10
@@ -82,6 +84,9 @@ function HomeContent() {
   const [traduccion, setTraduccion] = useState<TraducirResponse | null>(null);
   const [syntaxErrors, setSyntaxErrors] = useState<string[]>([]);
   const [errorLines, setErrorLines] = useState<number[]>([]);
+
+  /* Gallery modal */
+  const [showGallery, setShowGallery] = useState(false);
 
   /* Resizable panel */
   const [leftWidth, setLeftWidth] = useState(40);
@@ -249,22 +254,74 @@ function HomeContent() {
         onProgramChange={handleProgramChange}
         onAnalyze={handleAnalyze}
         isLoading={isLoading}
+        onOpenGallery={() => setShowGallery(true)}
       />
 
-      {/* Method context bar */}
+      {/* Pipeline + context bar */}
       <div
-        className="flex shrink-0 items-center gap-3 px-3 py-1"
+        className="flex shrink-0 items-center gap-2 px-3 py-1 overflow-x-auto"
         style={{
           backgroundColor: "var(--color-bg)",
           borderBottom: "1px solid var(--color-border)",
         }}
       >
-        <span className="text-[0.7rem] font-medium" style={{ color: "var(--color-accent)" }}>
-          {method === "lexico" ? "Analisis Lexico" : method === "recursivo" ? "Desc. Recursivo" : "Predictivo LL(1)"}
-        </span>
-        <span className="text-[0.65rem]" style={{ color: "var(--color-muted)" }}>
+        {/* Compiler pipeline indicator */}
+        {["Codigo", "Lexico", "Sintactico", "Semantico", "Swift"].map((fase, i) => {
+          const faseActiva = method === "lexico" ? 1 : 2;
+          const completada = i <= faseActiva;
+          const actual = i === faseActiva;
+          return (
+            <span key={fase} className="flex items-center gap-1">
+              {i > 0 && <span style={{ color: "var(--color-border)", fontSize: ".6rem" }}>→</span>}
+              <span
+                className="text-[0.6rem] font-medium px-1.5 py-0.5 rounded"
+                style={{
+                  backgroundColor: actual
+                    ? "rgba(137,180,250,.15)"
+                    : "transparent",
+                  color: completada
+                    ? actual ? "var(--color-accent)" : "var(--color-success)"
+                    : "var(--color-muted)",
+                  border: actual ? "1px solid rgba(137,180,250,.3)" : "1px solid transparent",
+                }}
+              >
+                {completada && i < faseActiva ? "✓ " : ""}{fase}
+              </span>
+            </span>
+          );
+        })}
+
+        <span style={{ color: "var(--color-border)" }} className="mx-1">|</span>
+
+        {/* Method description */}
+        <span className="text-[0.65rem] shrink-0" style={{ color: "var(--color-muted)" }}>
           {METHOD_DESCRIPTIONS[method]}
         </span>
+
+        {/* Results summary badge */}
+        {(lexico || recursivo || ll1) && (
+          <>
+            <span style={{ color: "var(--color-border)" }} className="mx-1">|</span>
+            <span className="text-[0.6rem] font-mono shrink-0 flex items-center gap-2" style={{ color: "var(--color-muted)" }}>
+              {lexico && <span>{lexico.total_tokens} tokens</span>}
+              {lexico && lexico.total_errores > 0 && (
+                <span style={{ color: "var(--color-error)" }}>{lexico.total_errores} err</span>
+              )}
+              {recursivo?.valido !== undefined && (
+                <span style={{ color: recursivo.valido ? "var(--color-success)" : "var(--color-error)" }}>
+                  {recursivo.valido ? "✓ valida" : "✗ invalida"}
+                </span>
+              )}
+              {recursivo?.total_nodos ? <span>{recursivo.total_nodos} nodos</span> : null}
+              {ll1?.valido !== undefined && (
+                <span style={{ color: ll1.valido ? "var(--color-success)" : "var(--color-error)" }}>
+                  {ll1.valido ? "✓ valida" : "✗ invalida"}
+                </span>
+              )}
+              {ll1?.total_pasos ? <span>{ll1.total_pasos} pasos</span> : null}
+            </span>
+          </>
+        )}
       </div>
 
       {/* Main split panel */}
@@ -329,6 +386,24 @@ function HomeContent() {
           />
         </div>
       </div>
+
+      {/* Floating grammar panel */}
+      <GrammarPanel
+        activeProduction={
+          ll1?.traza?.[0]?.accion?.includes("→")
+            ? ll1.traza[0].accion
+            : undefined
+        }
+      />
+
+      {/* Program gallery modal */}
+      {showGallery && (
+        <ProgramGallery
+          programas={programas}
+          onSelect={handleProgramChange}
+          onClose={() => setShowGallery(false)}
+        />
+      )}
     </div>
   );
 }
