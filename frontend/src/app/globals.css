@@ -1,0 +1,214 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Claudio IDE — Catppuccin Mocha palette */
+  --color-bg: #0E0E12;
+  --color-surface: #16161E;
+  --color-surface-2: #1E1E2A;
+  --color-text: #CDD6F4;
+  --color-muted: #6C7086;
+  --color-accent: #89B4FA;
+  --color-accent-hover: #B4D0FC;
+  --color-border: #2A2A3C;
+  --color-success: #A6E3A1;
+  --color-warning: #F9E2AF;
+  --color-error: #F38BA8;
+
+  /* Token syntax colors */
+  --token-keyword: #CBA6F7;
+  --token-identifier: #CDD6F4;
+  --token-number: #FAB387;
+  --token-string: #A6E3A1;
+  --token-operator: #F5C2E7;
+  --token-delimiter: #94E2D5;
+  --token-comment: #6C7086;
+  --token-type: #F9E2AF;
+
+  /* Tree node colors */
+  --tree-nonterminal: #89B4FA;
+  --tree-terminal: #A6E3A1;
+  --tree-epsilon: #6C7086;
+  --tree-edge: #45475A;
+
+  /* Spacing tokens — dense (DENSITY 8) */
+  --space-2: 0.125rem;
+  --space-4: 0.25rem;
+  --space-6: 0.375rem;
+  --space-8: 0.5rem;
+  --space-12: 0.75rem;
+  --space-16: 1rem;
+  --space-24: 1.5rem;
+
+  /* Z-index scale */
+  --z-base: 0;
+  --z-dropdown: 50;
+  --z-sticky: 100;
+  --z-overlay: 200;
+  --z-modal: 300;
+
+  /* Radius */
+  --radius: 0.5rem;
+
+  /* shadcn compatibility overrides */
+  --background: #0E0E12;
+  --foreground: #CDD6F4;
+  --card: #16161E;
+  --card-foreground: #CDD6F4;
+  --popover: #16161E;
+  --popover-foreground: #CDD6F4;
+  --primary: #89B4FA;
+  --primary-foreground: #0E0E12;
+  --secondary: #1E1E2A;
+  --secondary-foreground: #CDD6F4;
+  --muted: #1E1E2A;
+  --muted-foreground: #6C7086;
+  --accent: #1E1E2A;
+  --accent-foreground: #CDD6F4;
+  --destructive: #F38BA8;
+  --border: #2A2A3C;
+  --input: #2A2A3C;
+  --ring: #89B4FA;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Geist Mono", ui-monospace, monospace;
+  --font-heading: var(--font-sans);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-size: clamp(0.8125rem, 0.75rem + 0.25vw, 0.9375rem);
+    line-height: 1.45;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* CodeMirror theme overrides */
+.cm-editor {
+  height: 100% !important;
+  font-family: var(--font-mono);
+  font-size: clamp(0.75rem, 0.7rem + 0.2vw, 0.875rem);
+  background-color: var(--color-surface-2) !important;
+}
+
+.cm-editor .cm-gutters {
+  background-color: var(--color-surface) !important;
+  border-right: 1px solid var(--color-border) !important;
+  color: var(--color-muted) !important;
+}
+
+.cm-editor .cm-activeLineGutter {
+  background-color: var(--color-surface-2) !important;
+  color: var(--color-text) !important;
+}
+
+.cm-editor .cm-activeLine {
+  background-color: rgba(137, 180, 250, 0.04) !important;
+}
+
+.cm-editor .cm-cursor {
+  border-left-color: var(--color-accent) !important;
+}
+
+.cm-editor .cm-selectionBackground,
+.cm-editor .cm-content ::selection {
+  background-color: rgba(137, 180, 250, 0.15) !important;
+}
+
+.cm-editor .cm-matchingBracket {
+  background-color: rgba(137, 180, 250, 0.2) !important;
+  color: var(--color-accent) !important;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-muted);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* LL1 table sticky headers */
+.ll1-table th {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  background-color: var(--color-surface);
+}
+
+.ll1-table td:first-child,
+.ll1-table th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: calc(var(--z-sticky) - 1);
+  background-color: var(--color-surface);
+}
+
+.ll1-table th:first-child {
+  z-index: calc(var(--z-sticky) + 1);
+}
+
+/* Error line highlight in editor */
+.cm-error-line {
+  background-color: rgba(243, 139, 168, 0.08) !important;
+}
