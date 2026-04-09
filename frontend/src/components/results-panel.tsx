@@ -15,10 +15,12 @@ import type {
 } from "@/lib/api";
 
 export type ResultTab = "tokens" | "arbol" | "tabla" | "traza" | "swift" | "errores";
+export type AnalysisMethod = "lexico" | "recursivo" | "ll1";
 
 interface ResultsPanelProps {
   activeTab: ResultTab;
   onTabChange: (tab: ResultTab) => void;
+  method: AnalysisMethod;
   lexico: LexicoResponse | null;
   recursivo: RecursivoResponse | null;
   ll1: LL1Response | null;
@@ -28,18 +30,33 @@ interface ResultsPanelProps {
   onClickError?: (fila: number, columna: number) => void;
 }
 
-const TAB_ITEMS: { value: ResultTab; label: string }[] = [
-  { value: "tokens", label: "Tokens" },
-  { value: "arbol", label: "Arbol" },
-  { value: "tabla", label: "Tabla LL(1)" },
-  { value: "traza", label: "Traza" },
-  { value: "swift", label: "Swift" },
-  { value: "errores", label: "Errores" },
-];
+/* Tabs visibles segun el metodo seleccionado */
+const TABS_POR_METODO: Record<AnalysisMethod, { value: ResultTab; label: string }[]> = {
+  lexico: [
+    { value: "tokens", label: "Tokens" },
+    { value: "swift", label: "Swift" },
+    { value: "errores", label: "Errores" },
+  ],
+  recursivo: [
+    { value: "tokens", label: "Tokens" },
+    { value: "arbol", label: "Arbol" },
+    { value: "swift", label: "Swift" },
+    { value: "errores", label: "Errores" },
+  ],
+  ll1: [
+    { value: "tokens", label: "Tokens" },
+    { value: "arbol", label: "Arbol" },
+    { value: "tabla", label: "Tabla LL(1)" },
+    { value: "traza", label: "Traza" },
+    { value: "swift", label: "Swift" },
+    { value: "errores", label: "Errores" },
+  ],
+};
 
 export function ResultsPanel({
   activeTab,
   onTabChange,
+  method,
   lexico,
   recursivo,
   ll1,
@@ -48,6 +65,7 @@ export function ResultsPanel({
   syntaxErrors,
   onClickError,
 }: ResultsPanelProps) {
+  const visibleTabs = TABS_POR_METODO[method];
   const [highlightedCell, setHighlightedCell] = useState<{ nt: string; terminal: string } | null>(null);
 
   const handleHighlightCell = useCallback(
@@ -90,7 +108,7 @@ export function ResultsPanel({
         }}
         role="tablist"
       >
-        {TAB_ITEMS.map((tab) => {
+        {visibleTabs.map((tab) => {
           const isActive = activeTab === tab.value;
           return (
             <button

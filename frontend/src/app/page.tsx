@@ -318,6 +318,7 @@ function HomeContent() {
           <ResultsPanel
             activeTab={activeTab}
             onTabChange={setActiveTab}
+            method={method}
             lexico={lexico}
             recursivo={recursivo}
             ll1={ll1}
