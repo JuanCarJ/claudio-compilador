@@ -11,8 +11,8 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-ARG NEXT_PUBLIC_API_URL=http://backend:8000
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ARG BACKEND_URL=http://claudio-backend:8000
+ENV BACKEND_URL=$BACKEND_URL
 RUN npm run build
 
 # Runner

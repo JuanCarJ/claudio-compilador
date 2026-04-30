@@ -352,4 +352,29 @@ est.mostrar()
 
 var cadena clasificacion = clasificar(notaPonderada)
 imprimir(clasificacion)""",
+
+    "Quiz 3. Error: falta entonces": """// Caso invalido: falta la palabra reservada entonces
+var entero x = 10
+
+si x > 5
+    imprimir("Mayor")
+fin_si""",
+
+    "Quiz 3. Error: parentesis sin cerrar": """// Caso invalido: llamada incompleta
+var cadena nombre = "Claudio"
+imprimir(nombre
+imprimir("continua")""",
+
+    "Quiz 3. Error: multiples fallos": """// Caso invalido: varios errores para demostrar recuperacion
+var x = 10
+
+si x > entonces
+    imprimir(x
+fin_si
+
+mientras hacer
+    imprimir("loop")
+fin_mientras
+
+imprimir(@)""",
 }

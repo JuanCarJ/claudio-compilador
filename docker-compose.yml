@@ -1,19 +1,32 @@
 services:
-  backend:
+  claudio-backend:
     build: ./backend
-    ports:
-      - "8000:8000"
+    container_name: claudio-backend
     restart: unless-stopped
+    networks:
+      - cogni-net
 
-  frontend:
+  claudio-frontend:
     build:
       context: ./frontend
       args:
-        NEXT_PUBLIC_API_URL: http://backend:8000
-    ports:
-      - "3000:3000"
+        NEXT_PUBLIC_API_URL: http://claudio-backend:8000
+    container_name: claudio-frontend
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000
-    depends_on:
-      - backend
+      - BACKEND_URL=http://claudio-backend:8000
     restart: unless-stopped
+    depends_on:
+      - claudio-backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.claudio.rule=Host(`claudio.dautia.com`)"
+      - "traefik.http.routers.claudio.entrypoints=websecure"
+      - "traefik.http.routers.claudio.tls.certresolver=myresolver"
+      - "traefik.http.services.claudio.loadbalancer.server.port=3000"
+    networks:
+      - cogni-net
+
+networks:
+  cogni-net:
+    external: true
+    name: calenagent-infrastructure_cogni-net

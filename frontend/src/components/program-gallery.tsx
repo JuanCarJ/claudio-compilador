@@ -27,6 +27,9 @@ const PROGRAM_TAGS: Record<string, { tags: string[]; complexity: "simple" | "med
   "13. Clases y objetos": { tags: ["clase", "metodo", "atributo", "nuevo", "este"], complexity: "complejo" },
   "14. Herencia": { tags: ["clase", "hereda", "metodo", "nuevo"], complexity: "complejo" },
   "15. Programa completo": { tags: ["todo", "clase", "funcion", "si", "para", "mientras"], complexity: "complejo" },
+  "Quiz 3. Error: falta entonces": { tags: ["quiz3", "error", "si", "entonces"], complexity: "medio" },
+  "Quiz 3. Error: parentesis sin cerrar": { tags: ["quiz3", "error", "imprimir", ")"], complexity: "medio" },
+  "Quiz 3. Error: multiples fallos": { tags: ["quiz3", "error", "recuperacion", "ia"], complexity: "complejo" },
 };
 
 const COMPLEXITY_COLORS = {
@@ -72,7 +75,7 @@ export function ProgramGallery({ programas, onSelect, onClose }: ProgramGalleryP
               Programas de Ejemplo
             </h2>
             <p className="text-[0.7rem]" style={{ color: "var(--color-muted)" }}>
-              15 programas que cubren todos los constructos de Claudio
+              15 programas validos y casos Quiz 3 para recuperacion de errores
             </p>
           </div>
           <button
@@ -109,22 +112,23 @@ export function ProgramGallery({ programas, onSelect, onClose }: ProgramGalleryP
             {entries.map(([name, code]) => {
               const meta = PROGRAM_TAGS[name] ?? { tags: [], complexity: "simple" as const };
               const lineCount = code.split("\n").length;
+              const isInvalidDemo = name.startsWith("Quiz 3.");
               return (
                 <button
                   key={name}
                   onClick={() => { onSelect(name); onClose(); }}
                   className="text-left rounded-lg p-3 transition-all duration-100 cursor-pointer group"
                   style={{
-                    backgroundColor: "var(--color-surface-2)",
-                    border: "1px solid var(--color-border)",
+                    backgroundColor: isInvalidDemo ? "rgba(243,139,168,.07)" : "var(--color-surface-2)",
+                    border: isInvalidDemo ? "1px solid rgba(243,139,168,.28)" : "1px solid var(--color-border)",
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = "rgba(137,180,250,.4)";
                     e.currentTarget.style.backgroundColor = "rgba(137,180,250,.06)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "var(--color-border)";
-                    e.currentTarget.style.backgroundColor = "var(--color-surface-2)";
+                    e.currentTarget.style.borderColor = isInvalidDemo ? "rgba(243,139,168,.28)" : "var(--color-border)";
+                    e.currentTarget.style.backgroundColor = isInvalidDemo ? "rgba(243,139,168,.07)" : "var(--color-surface-2)";
                   }}
                 >
                   <div className="flex items-center justify-between mb-1.5">
@@ -138,7 +142,7 @@ export function ProgramGallery({ programas, onSelect, onClose }: ProgramGalleryP
                         color: COMPLEXITY_COLORS[meta.complexity],
                       }}
                     >
-                      {meta.complexity}
+                      {isInvalidDemo ? "quiz3" : meta.complexity}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-1 mb-1.5">

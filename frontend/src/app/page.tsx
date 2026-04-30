@@ -11,10 +11,13 @@ import {
   analizarRecursivo,
   analizarLL1,
   traducirSwift,
+  generarSugerenciasIA,
   type LexicoResponse,
   type RecursivoResponse,
   type LL1Response,
   type TraducirResponse,
+  type SyntaxDiagnostic,
+  type AISuggestion,
 } from "@/lib/api";
 import { GrammarPanel } from "@/components/grammar-panel";
 import { ProgramGallery } from "@/components/program-gallery";
@@ -46,6 +49,26 @@ const METHOD_DESCRIPTIONS: Record<AnalysisMethod, string> = {
   recursivo: "Una funcion por cada no-terminal — construye el arbol de derivacion",
   ll1: "Tabla M[A,a] + pila explicita — traza paso a paso del analisis",
 };
+
+function attachAISuggestions(
+  diagnostics: SyntaxDiagnostic[] = [],
+  suggestions: AISuggestion[] = []
+) {
+  const byIndex = new Map(suggestions.map((item) => [item.indice, item]));
+  return diagnostics.map((diag) => {
+    const suggestion = byIndex.get(diag.indice);
+    if (!suggestion) return diag;
+    return {
+      ...diag,
+      sugerencia_ia: suggestion,
+      estado_ia: suggestion.estado_ia,
+    };
+  });
+}
+
+function syntaxLines(diagnostics: SyntaxDiagnostic[] = []) {
+  return diagnostics.map((d) => d.fila).filter((line) => Number.isFinite(line) && line > 0);
+}
 
 import { Suspense } from "react";
 
@@ -84,6 +107,7 @@ function HomeContent() {
   const [traduccion, setTraduccion] = useState<TraducirResponse | null>(null);
   const [syntaxErrors, setSyntaxErrors] = useState<string[]>([]);
   const [errorLines, setErrorLines] = useState<number[]>([]);
+  const analysisRunId = useRef(0);
 
   /* Gallery modal */
   const [showGallery, setShowGallery] = useState(false);
@@ -130,7 +154,7 @@ function HomeContent() {
         setCode(programas[name]);
       }
     },
-    [programas]
+    [method, programas, updateURL]
   );
 
   /* When method changes, switch default tab + update URL */
@@ -143,19 +167,31 @@ function HomeContent() {
   /* Run analysis */
   const handleAnalyze = useCallback(async () => {
     if (!code.trim() || isLoading) return;
+    const runId = analysisRunId.current + 1;
+    analysisRunId.current = runId;
     setIsLoading(true);
     setSyntaxErrors([]);
     setErrorLines([]);
+    setLexico(null);
+    setRecursivo(null);
+    setLL1(null);
+    setTraduccion(null);
+    setActiveTab(METHOD_TAB[method]);
 
     try {
       switch (method) {
         case "lexico": {
           const res = await analizarLexico(code);
+          if (analysisRunId.current !== runId) return;
           setLexico(res);
           setActiveTab("tokens");
           /* Also attempt translation */
           traducirSwift(code)
-            .then(setTraduccion)
+            .then((swift) => {
+              if (analysisRunId.current === runId) {
+                setTraduccion(swift);
+              }
+            })
             .catch(() => {});
           /* Highlight error lines */
           if (res.errores?.length) {
@@ -168,51 +204,132 @@ function HomeContent() {
         }
         case "recursivo": {
           const res = await analizarRecursivo(code);
+          if (analysisRunId.current !== runId) return;
           setRecursivo(res);
           if (res.lexico) setLexico(res.lexico);
-          setSyntaxErrors(res.errores ?? []);
+          setSyntaxErrors([]);
           setActiveTab("arbol");
           traducirSwift(code)
-            .then(setTraduccion)
+            .then((swift) => {
+              if (analysisRunId.current === runId) {
+                setTraduccion(swift);
+              }
+            })
             .catch(() => {});
-          if (res.lexico?.errores?.length) {
-            setErrorLines(res.lexico.errores.map((e) => e.fila));
+          const lines = [
+            ...(res.lexico?.errores?.map((e) => e.fila) ?? []),
+            ...syntaxLines(res.errores_sintacticos),
+          ];
+          if (lines.length) {
+            setErrorLines(lines);
           }
-          if (res.errores?.length) {
+          if (res.lexico?.errores?.length || res.errores_sintacticos?.length) {
             setActiveTab("errores");
+          }
+          if (res.errores_sintacticos?.length) {
+            generarSugerenciasIA(code, res.errores_sintacticos)
+              .then((ia) => {
+                if (analysisRunId.current !== runId) return;
+                setRecursivo((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        errores_sintacticos: attachAISuggestions(prev.errores_sintacticos, ia.sugerencias),
+                      }
+                    : prev
+                );
+              })
+              .catch(() => {
+                if (analysisRunId.current !== runId) return;
+                setRecursivo((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        errores_sintacticos: prev.errores_sintacticos.map((diag) => ({
+                          ...diag,
+                          estado_ia: "error",
+                        })),
+                      }
+                    : prev
+                );
+              });
           }
           break;
         }
         case "ll1": {
           const res = await analizarLL1(code);
+          if (analysisRunId.current !== runId) return;
           setLL1(res);
           if (res.lexico) setLexico(res.lexico);
           setActiveTab("traza");
           traducirSwift(code)
-            .then(setTraduccion)
+            .then((swift) => {
+              if (analysisRunId.current === runId) {
+                setTraduccion(swift);
+              }
+            })
             .catch(() => {});
-          if (res.lexico?.errores?.length) {
-            setErrorLines(res.lexico.errores.map((e) => e.fila));
+          const lines = [
+            ...(res.lexico?.errores?.map((e) => e.fila) ?? []),
+            ...syntaxLines(res.errores_sintacticos),
+          ];
+          if (lines.length) {
+            setErrorLines(lines);
+          }
+          if (res.lexico?.errores?.length || res.errores_sintacticos?.length) {
+            setActiveTab("errores");
+          }
+          if (res.errores_sintacticos?.length) {
+            generarSugerenciasIA(code, res.errores_sintacticos)
+              .then((ia) => {
+                if (analysisRunId.current !== runId) return;
+                setLL1((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        errores_sintacticos: attachAISuggestions(prev.errores_sintacticos, ia.sugerencias),
+                      }
+                    : prev
+                );
+              })
+              .catch(() => {
+                if (analysisRunId.current !== runId) return;
+                setLL1((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        errores_sintacticos: prev.errores_sintacticos.map((diag) => ({
+                          ...diag,
+                          estado_ia: "error",
+                        })),
+                      }
+                    : prev
+                );
+              });
           }
           break;
         }
       }
     } catch (err) {
+      if (analysisRunId.current !== runId) return;
       setSyntaxErrors([
         err instanceof Error ? err.message : "Error de conexion con el servidor",
       ]);
       setActiveTab("errores");
     } finally {
-      setIsLoading(false);
+      if (analysisRunId.current === runId) {
+        setIsLoading(false);
+      }
     }
   }, [code, method, isLoading]);
 
   /* Error click -> jump to line in editor */
-  const handleClickError = useCallback((_fila: number, _columna: number) => {
-    /* The CodeEditor exposes jumpToLine as a static function,
-       but since we don't hold a ref to the EditorView here,
-       we dispatch a custom event that the editor could listen to.
-       For simplicity, we just scroll to the error tab feedback. */
+  const handleClickError = useCallback((fila: number, columna: number) => {
+    window.dispatchEvent(
+      new CustomEvent("claudio:jump-to-line", {
+        detail: { fila, columna },
+      })
+    );
   }, []);
 
   /* Resize handlers */

@@ -136,6 +136,30 @@ export function CodeEditor({ value, onChange, onAnalyze, errorLines = [] }: Code
     highlightErrors();
   }, [highlightErrors]);
 
+  /* External navigation from diagnostics panel */
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ fila?: number; columna?: number }>).detail;
+      const view = viewRef.current;
+      if (!view || !detail?.fila) return;
+      try {
+        const lineInfo = view.state.doc.line(detail.fila);
+        const columnOffset = Math.max(0, (detail.columna ?? 1) - 1);
+        const pos = Math.min(lineInfo.to, lineInfo.from + columnOffset);
+        view.dispatch({
+          selection: { anchor: pos },
+          scrollIntoView: true,
+        });
+        view.focus();
+      } catch {
+        /* Line may not exist */
+      }
+    };
+
+    window.addEventListener("claudio:jump-to-line", handler);
+    return () => window.removeEventListener("claudio:jump-to-line", handler);
+  }, []);
+
   return (
     <div
       ref={containerRef}

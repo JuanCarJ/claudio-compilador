@@ -12,6 +12,12 @@ de derivacion. Reporta el primer error sintactico encontrado.
 from typing import List, Optional
 from lexer import Token, TokenType
 from arbol import NodoArbol
+from diagnostics import (
+    SYNC_TOKEN_TYPES,
+    TOKEN_A_TERMINAL,
+    SyntaxDiagnostic,
+    crear_diagnostico,
+)
 
 
 # ─────────────────────────────────────────────
@@ -19,10 +25,17 @@ from arbol import NodoArbol
 # ─────────────────────────────────────────────
 
 class ErrorSintactico(Exception):
-    def __init__(self, mensaje: str, fila: int = 0, columna: int = 0):
+    def __init__(
+        self,
+        mensaje: str,
+        fila: int = 0,
+        columna: int = 0,
+        diagnostico: SyntaxDiagnostic | None = None,
+    ):
         self.mensaje = mensaje
         self.fila = fila
         self.columna = columna
+        self.diagnostico = diagnostico
         super().__init__(mensaje)
 
 
@@ -69,6 +82,17 @@ CIERRE_BLOQUE = {
     TokenType.FIN_DE_ARCHIVO,
 }
 
+FOLLOW_EXPRESION_RECUPERABLE = FIRST_DECLARACION | CIERRE_BLOQUE | {
+    TokenType.PR_ENTONCES,
+    TokenType.PR_HACER,
+    TokenType.PR_HASTA,
+    TokenType.PR_PASO,
+    TokenType.PAREN_DER,
+    TokenType.COMA,
+    TokenType.PUNTO_Y_COMA,
+    TokenType.FIN_DE_ARCHIVO,
+}
+
 
 # ─────────────────────────────────────────────
 # § 3  PARSER DESCENDENTE RECURSIVO
@@ -88,6 +112,7 @@ class ParserDescendenteRecursivo:
                                          TokenType.ERROR_LEXICO)]
         self.pos = 0
         self.errores: List[str] = []
+        self.errores_sintacticos: List[SyntaxDiagnostic] = []
 
     # ── Utilidades de tokens ────────────────
 
@@ -105,18 +130,86 @@ class ParserDescendenteRecursivo:
     def _verificar(self, *tipos: TokenType) -> bool:
         return self._actual().tipo in tipos
 
+    def _debe_insertar_terminal(self, esperado: TokenType, actual: Token) -> bool:
+        if actual.tipo == TokenType.FIN_DE_ARCHIVO:
+            return True
+        if esperado in (TokenType.PR_ENTONCES, TokenType.PR_HACER):
+            return actual.tipo in FIRST_SENTENCIA or actual.tipo in CIERRE_BLOQUE
+        if esperado in (
+            TokenType.PR_FIN_SI,
+            TokenType.PR_FIN_PARA,
+            TokenType.PR_FIN_MIENTRAS,
+            TokenType.PR_FIN_FUNCION,
+            TokenType.PR_FIN_CLASE,
+        ):
+            return actual.tipo in FIRST_DECLARACION or actual.tipo in CIERRE_BLOQUE
+        if esperado == TokenType.PAREN_DER:
+            return actual.tipo in FOLLOW_EXPRESION_RECUPERABLE
+        if esperado == TokenType.IDENTIFICADOR:
+            return actual.tipo in {
+                TokenType.OP_ASIGNACION,
+                TokenType.PAREN_IZQ,
+                TokenType.PAREN_DER,
+                TokenType.PR_HACER,
+                TokenType.PR_HEREDA,
+                TokenType.FIN_DE_ARCHIVO,
+            } or actual.tipo in CIERRE_BLOQUE
+        if esperado == TokenType.OP_ASIGNACION:
+            return actual.tipo in FIRST_EXPRESION or actual.tipo in FIRST_DECLARACION
+        return False
+
     def _esperar(self, tipo: TokenType, contexto: str = "") -> Token:
         tok = self._actual()
         if tok.tipo == tipo:
             return self._avanzar()
-        esperado = tipo.name
-        encontrado = tok.tipo.name
-        msg = (f"Error sintactico en fila {tok.fila}, col {tok.columna}: "
-               f"se esperaba {esperado} pero se encontro '{tok.lexema}' ({encontrado})")
-        if contexto:
-            msg += f" en {contexto}"
-        self.errores.append(msg)
-        raise ErrorSintactico(msg, tok.fila, tok.columna)
+        terminal = TOKEN_A_TERMINAL.get(tipo, tipo.name)
+        if self._debe_insertar_terminal(tipo, tok):
+            self._registrar_error(
+                tok,
+                [tipo],
+                contexto or f"terminal {tipo.name}",
+                (
+                    f"Se asumio que faltaba `{terminal}` y se continuo "
+                    f"sin consumir `{tok.lexema}`."
+                ),
+            )
+            return Token(f"<{terminal}>", tipo, tok.fila, tok.columna)
+        diag = self._registrar_error(
+            tok,
+            [tipo],
+            contexto or f"terminal {tipo.name}",
+            f"Se sincronizo desde `{tok.lexema}` para continuar el analisis recursivo.",
+        )
+        raise ErrorSintactico(diag.mensaje_legacy(), tok.fila, tok.columna, diag)
+
+    def _registrar_error(
+        self,
+        token: Token,
+        esperados: List[TokenType | str],
+        contexto: str,
+        recuperacion: str,
+    ) -> SyntaxDiagnostic:
+        diag = crear_diagnostico(
+            indice=len(self.errores_sintacticos) + 1,
+            token=token,
+            esperados=esperados,
+            contexto=contexto,
+            recuperacion=recuperacion,
+        )
+        self.errores_sintacticos.append(diag)
+        self.errores.append(diag.mensaje_legacy())
+        return diag
+
+    def obtener_errores_sintacticos(self) -> List[SyntaxDiagnostic]:
+        return self.errores_sintacticos
+
+    def _sincronizar(self, incluir_actual: bool = False):
+        if incluir_actual and not self._verificar(TokenType.FIN_DE_ARCHIVO):
+            self._avanzar()
+        while not self._verificar(TokenType.FIN_DE_ARCHIVO):
+            if self._actual().tipo in SYNC_TOKEN_TYPES:
+                return
+            self._avanzar()
 
     def _crear_nodo(self, simbolo: str) -> NodoArbol:
         return NodoArbol(simbolo=simbolo)
@@ -131,6 +224,9 @@ class ParserDescendenteRecursivo:
     def _crear_epsilon(self) -> NodoArbol:
         return NodoArbol(simbolo="ε", lexema="ε", es_terminal=True, es_epsilon=True)
 
+    def _crear_faltante(self, simbolo: str, lexema: str) -> NodoArbol:
+        return NodoArbol(simbolo=simbolo, lexema=lexema, es_terminal=True)
+
     # ── Punto de entrada ────────────────────
 
     def analizar(self) -> NodoArbol:
@@ -138,11 +234,44 @@ class ParserDescendenteRecursivo:
         arbol = self._programa()
         if not self._verificar(TokenType.FIN_DE_ARCHIVO):
             tok = self._actual()
-            msg = (f"Error sintactico en fila {tok.fila}, col {tok.columna}: "
-                   f"tokens sobrantes despues del programa: '{tok.lexema}'")
-            self.errores.append(msg)
-            raise ErrorSintactico(msg, tok.fila, tok.columna)
+            diag = self._registrar_error(
+                tok,
+                [TokenType.FIN_DE_ARCHIVO],
+                "fin de programa",
+                "Se descarto entrada sobrante despues del programa.",
+            )
+            raise ErrorSintactico(diag.mensaje_legacy(), tok.fila, tok.columna, diag)
         return arbol
+
+    def analizar_con_recuperacion(self) -> tuple[NodoArbol, bool]:
+        """Analiza acumulando errores y retomando en puntos seguros."""
+        self.errores = []
+        self.errores_sintacticos = []
+        arbol = self._crear_nodo("programa")
+
+        while not self._verificar(TokenType.FIN_DE_ARCHIVO):
+            tok = self._actual()
+            if tok.tipo in FIRST_DECLARACION:
+                try:
+                    arbol.agregar_hijo(self._declaracion())
+                except ErrorSintactico:
+                    self._sincronizar(incluir_actual=False)
+                    if self._actual().tipo in CIERRE_BLOQUE:
+                        self._avanzar()
+            else:
+                self._registrar_error(
+                    tok,
+                    [t.name for t in FIRST_DECLARACION],
+                    "declaracion",
+                    "Se descarto el token hasta encontrar el inicio de una declaracion o sentencia.",
+                )
+                self._sincronizar(incluir_actual=True)
+                if self._actual().tipo in CIERRE_BLOQUE:
+                    self._avanzar()
+
+        if not arbol.hijos:
+            arbol.agregar_hijo(self._crear_epsilon())
+        return arbol, len(self.errores_sintacticos) == 0
 
     # ── § 3.1  Programa y declaraciones ─────
 
@@ -168,10 +297,13 @@ class ParserDescendenteRecursivo:
         elif tok.tipo in FIRST_SENTENCIA:
             nodo.agregar_hijo(self._sentencia())
         else:
-            msg = (f"Error sintactico en fila {tok.fila}, col {tok.columna}: "
-                   f"declaracion inesperada: '{tok.lexema}'")
-            self.errores.append(msg)
-            raise ErrorSintactico(msg, tok.fila, tok.columna)
+            diag = self._registrar_error(
+                tok,
+                list(FIRST_DECLARACION),
+                "declaracion",
+                "Se busco el siguiente inicio valido de declaracion o sentencia.",
+            )
+            raise ErrorSintactico(diag.mensaje_legacy(), tok.fila, tok.columna, diag)
         return nodo
 
     def _importacion(self) -> NodoArbol:
@@ -191,7 +323,7 @@ class ParserDescendenteRecursivo:
         nodo.agregar_hijo(self._tipo())
         nodo.agregar_hijo(self._crear_hoja(self._esperar(TokenType.IDENTIFICADOR, "declaracion de variable")))
         nodo.agregar_hijo(self._crear_hoja(self._esperar(TokenType.OP_ASIGNACION, "declaracion de variable")))
-        nodo.agregar_hijo(self._expresion())
+        nodo.agregar_hijo(self._expresion("valor de asignacion de variable"))
         return nodo
 
     # ── § 3.3  Funciones ───────────────────
@@ -318,10 +450,13 @@ class ParserDescendenteRecursivo:
             nodo.agregar_hijo(self._sentencia())
         else:
             tok = self._actual()
-            msg = (f"Error sintactico en fila {tok.fila}, col {tok.columna}: "
-                   f"se esperaba una sentencia pero se encontro '{tok.lexema}'")
-            self.errores.append(msg)
-            raise ErrorSintactico(msg, tok.fila, tok.columna)
+            diag = self._registrar_error(
+                tok,
+                list(FIRST_SENTENCIA),
+                "bloque",
+                "Se omitio contenido hasta encontrar una sentencia o cierre de bloque.",
+            )
+            raise ErrorSintactico(diag.mensaje_legacy(), tok.fila, tok.columna, diag)
         # bloque' → sentencia bloque' | ε
         while self._verificar(*FIRST_SENTENCIA):
             nodo.agregar_hijo(self._sentencia())
@@ -353,10 +488,13 @@ class ParserDescendenteRecursivo:
         elif tok.tipo == TokenType.PR_CONTINUAR:
             nodo.agregar_hijo(self._sent_continuar())
         else:
-            msg = (f"Error sintactico en fila {tok.fila}, col {tok.columna}: "
-                   f"sentencia inesperada: '{tok.lexema}'")
-            self.errores.append(msg)
-            raise ErrorSintactico(msg, tok.fila, tok.columna)
+            diag = self._registrar_error(
+                tok,
+                list(FIRST_SENTENCIA),
+                "sentencia",
+                "Se descarto la entrada hasta encontrar una sentencia reconocible.",
+            )
+            raise ErrorSintactico(diag.mensaje_legacy(), tok.fila, tok.columna, diag)
         return nodo
 
     # ── § 3.6  sent_id (fusionado: asignacion + llamada) ──
@@ -392,7 +530,7 @@ class ParserDescendenteRecursivo:
         if self._verificar(TokenType.OP_ASIGNACION):
             # Asignacion: ID = expresion
             nodo.agregar_hijo(self._crear_hoja(self._avanzar()))
-            nodo.agregar_hijo(self._expresion())
+            nodo.agregar_hijo(self._expresion("valor de asignacion"))
         elif self._verificar(TokenType.PUNTO):
             # Acceso miembro: ID . miembro resto_id
             nodo.agregar_hijo(self._crear_hoja(self._avanzar()))
@@ -411,7 +549,7 @@ class ParserDescendenteRecursivo:
         """sent_si → si expresion entonces bloque rama_sino fin_si"""
         nodo = self._crear_nodo("sent_si")
         nodo.agregar_hijo(self._crear_hoja(self._esperar(TokenType.PR_SI)))
-        nodo.agregar_hijo(self._expresion())
+        nodo.agregar_hijo(self._expresion("condicion de si"))
         nodo.agregar_hijo(self._crear_hoja(self._esperar(TokenType.PR_ENTONCES, "condicional si")))
         nodo.agregar_hijo(self._bloque())
         nodo.agregar_hijo(self._rama_sino())
@@ -436,9 +574,9 @@ class ParserDescendenteRecursivo:
         nodo.agregar_hijo(self._crear_hoja(self._esperar(TokenType.PR_PARA)))
         nodo.agregar_hijo(self._crear_hoja(self._esperar(TokenType.IDENTIFICADOR, "ciclo para")))
         nodo.agregar_hijo(self._crear_hoja(self._esperar(TokenType.PR_DESDE, "ciclo para")))
-        nodo.agregar_hijo(self._expresion())
+        nodo.agregar_hijo(self._expresion("valor inicial del ciclo para"))
         nodo.agregar_hijo(self._crear_hoja(self._esperar(TokenType.PR_HASTA, "ciclo para")))
-        nodo.agregar_hijo(self._expresion())
+        nodo.agregar_hijo(self._expresion("limite del ciclo para"))
         nodo.agregar_hijo(self._paso_opt())
         nodo.agregar_hijo(self._crear_hoja(self._esperar(TokenType.PR_HACER, "ciclo para")))
         nodo.agregar_hijo(self._bloque())
@@ -450,7 +588,7 @@ class ParserDescendenteRecursivo:
         nodo = self._crear_nodo("paso_opt")
         if self._verificar(TokenType.PR_PASO):
             nodo.agregar_hijo(self._crear_hoja(self._avanzar()))
-            nodo.agregar_hijo(self._expresion())
+            nodo.agregar_hijo(self._expresion("paso del ciclo para"))
         else:
             nodo.agregar_hijo(self._crear_epsilon())
         return nodo
@@ -459,7 +597,7 @@ class ParserDescendenteRecursivo:
         """sent_mientras → mientras expresion hacer bloque fin_mientras"""
         nodo = self._crear_nodo("sent_mientras")
         nodo.agregar_hijo(self._crear_hoja(self._esperar(TokenType.PR_MIENTRAS)))
-        nodo.agregar_hijo(self._expresion())
+        nodo.agregar_hijo(self._expresion("condicion de mientras"))
         nodo.agregar_hijo(self._crear_hoja(self._esperar(TokenType.PR_HACER, "ciclo mientras")))
         nodo.agregar_hijo(self._bloque())
         nodo.agregar_hijo(self._crear_hoja(self._esperar(TokenType.PR_FIN_MIENTRAS, "ciclo mientras")))
@@ -471,7 +609,7 @@ class ParserDescendenteRecursivo:
         """sent_retornar → retornar expresion"""
         nodo = self._crear_nodo("sent_retornar")
         nodo.agregar_hijo(self._crear_hoja(self._esperar(TokenType.PR_RETORNAR)))
-        nodo.agregar_hijo(self._expresion())
+        nodo.agregar_hijo(self._expresion("valor de retorno"))
         return nodo
 
     def _sent_imprimir(self) -> NodoArbol:
@@ -479,7 +617,7 @@ class ParserDescendenteRecursivo:
         nodo = self._crear_nodo("sent_imprimir")
         nodo.agregar_hijo(self._crear_hoja(self._esperar(TokenType.PR_IMPRIMIR)))
         nodo.agregar_hijo(self._crear_hoja(self._esperar(TokenType.PAREN_IZQ, "imprimir")))
-        nodo.agregar_hijo(self._expresion())
+        nodo.agregar_hijo(self._expresion("argumento de imprimir"))
         nodo.agregar_hijo(self._crear_hoja(self._esperar(TokenType.PAREN_DER, "imprimir")))
         return nodo
 
@@ -509,7 +647,7 @@ class ParserDescendenteRecursivo:
     def _arg_lista(self) -> NodoArbol:
         """arg_lista → expresion arg_resto"""
         nodo = self._crear_nodo("arg_lista")
-        nodo.agregar_hijo(self._expresion())
+        nodo.agregar_hijo(self._expresion("argumento de llamada"))
         nodo.agregar_hijo(self._arg_resto())
         return nodo
 
@@ -518,7 +656,7 @@ class ParserDescendenteRecursivo:
         nodo = self._crear_nodo("arg_resto")
         if self._verificar(TokenType.COMA):
             nodo.agregar_hijo(self._crear_hoja(self._avanzar()))
-            nodo.agregar_hijo(self._expresion())
+            nodo.agregar_hijo(self._expresion("argumento de llamada"))
             nodo.agregar_hijo(self._arg_resto())
         else:
             nodo.agregar_hijo(self._crear_epsilon())
@@ -526,56 +664,56 @@ class ParserDescendenteRecursivo:
 
     # ── § 3.11  Expresiones ────────────────
 
-    def _expresion(self) -> NodoArbol:
+    def _expresion(self, contexto: str = "expresion") -> NodoArbol:
         """expresion → expr_or"""
         nodo = self._crear_nodo("expresion")
-        nodo.agregar_hijo(self._expr_or())
+        nodo.agregar_hijo(self._expr_or(contexto))
         return nodo
 
-    def _expr_or(self) -> NodoArbol:
+    def _expr_or(self, contexto: str = "expresion") -> NodoArbol:
         """expr_or → expr_and expr_or'"""
         nodo = self._crear_nodo("expr_or")
-        nodo.agregar_hijo(self._expr_and())
-        nodo.agregar_hijo(self._expr_or_prima())
+        nodo.agregar_hijo(self._expr_and(contexto))
+        nodo.agregar_hijo(self._expr_or_prima(contexto))
         return nodo
 
-    def _expr_or_prima(self) -> NodoArbol:
+    def _expr_or_prima(self, contexto: str = "expresion") -> NodoArbol:
         """expr_or' → o expr_and expr_or' | ε"""
         nodo = self._crear_nodo("expr_or'")
         if self._verificar(TokenType.PR_O):
             nodo.agregar_hijo(self._crear_hoja(self._avanzar()))
-            nodo.agregar_hijo(self._expr_and())
-            nodo.agregar_hijo(self._expr_or_prima())
+            nodo.agregar_hijo(self._expr_and("operando derecho de operador logico `o`"))
+            nodo.agregar_hijo(self._expr_or_prima(contexto))
         else:
             nodo.agregar_hijo(self._crear_epsilon())
         return nodo
 
-    def _expr_and(self) -> NodoArbol:
+    def _expr_and(self, contexto: str = "expresion") -> NodoArbol:
         """expr_and → expr_rel expr_and'"""
         nodo = self._crear_nodo("expr_and")
-        nodo.agregar_hijo(self._expr_rel())
-        nodo.agregar_hijo(self._expr_and_prima())
+        nodo.agregar_hijo(self._expr_rel(contexto))
+        nodo.agregar_hijo(self._expr_and_prima(contexto))
         return nodo
 
-    def _expr_and_prima(self) -> NodoArbol:
+    def _expr_and_prima(self, contexto: str = "expresion") -> NodoArbol:
         """expr_and' → y expr_rel expr_and' | ε"""
         nodo = self._crear_nodo("expr_and'")
         if self._verificar(TokenType.PR_Y):
             nodo.agregar_hijo(self._crear_hoja(self._avanzar()))
-            nodo.agregar_hijo(self._expr_rel())
-            nodo.agregar_hijo(self._expr_and_prima())
+            nodo.agregar_hijo(self._expr_rel("operando derecho de operador logico `y`"))
+            nodo.agregar_hijo(self._expr_and_prima(contexto))
         else:
             nodo.agregar_hijo(self._crear_epsilon())
         return nodo
 
-    def _expr_rel(self) -> NodoArbol:
+    def _expr_rel(self, contexto: str = "expresion") -> NodoArbol:
         """expr_rel → expr_add expr_rel'"""
         nodo = self._crear_nodo("expr_rel")
-        nodo.agregar_hijo(self._expr_add())
-        nodo.agregar_hijo(self._expr_rel_prima())
+        nodo.agregar_hijo(self._expr_add(contexto))
+        nodo.agregar_hijo(self._expr_rel_prima(contexto))
         return nodo
 
-    def _expr_rel_prima(self) -> NodoArbol:
+    def _expr_rel_prima(self, contexto: str = "expresion") -> NodoArbol:
         """expr_rel' → op_rel expr_add | ε"""
         nodo = self._crear_nodo("expr_rel'")
         ops_rel = {TokenType.OP_IGUAL, TokenType.OP_DISTINTO,
@@ -583,79 +721,79 @@ class ParserDescendenteRecursivo:
                    TokenType.OP_MENOR_IGUAL, TokenType.OP_MAYOR_IGUAL}
         if self._verificar(*ops_rel):
             nodo.agregar_hijo(self._crear_hoja(self._avanzar()))
-            nodo.agregar_hijo(self._expr_add())
+            nodo.agregar_hijo(self._expr_add("operando derecho de operador relacional"))
         else:
             nodo.agregar_hijo(self._crear_epsilon())
         return nodo
 
-    def _expr_add(self) -> NodoArbol:
+    def _expr_add(self, contexto: str = "expresion") -> NodoArbol:
         """expr_add → expr_mul expr_add'"""
         nodo = self._crear_nodo("expr_add")
-        nodo.agregar_hijo(self._expr_mul())
-        nodo.agregar_hijo(self._expr_add_prima())
+        nodo.agregar_hijo(self._expr_mul(contexto))
+        nodo.agregar_hijo(self._expr_add_prima(contexto))
         return nodo
 
-    def _expr_add_prima(self) -> NodoArbol:
+    def _expr_add_prima(self, contexto: str = "expresion") -> NodoArbol:
         """expr_add' → + expr_mul expr_add' | - expr_mul expr_add' | ε"""
         nodo = self._crear_nodo("expr_add'")
         if self._verificar(TokenType.OP_SUMA, TokenType.OP_RESTA):
             nodo.agregar_hijo(self._crear_hoja(self._avanzar()))
-            nodo.agregar_hijo(self._expr_mul())
-            nodo.agregar_hijo(self._expr_add_prima())
+            nodo.agregar_hijo(self._expr_mul("operando derecho de operador aritmetico"))
+            nodo.agregar_hijo(self._expr_add_prima(contexto))
         else:
             nodo.agregar_hijo(self._crear_epsilon())
         return nodo
 
-    def _expr_mul(self) -> NodoArbol:
+    def _expr_mul(self, contexto: str = "expresion") -> NodoArbol:
         """expr_mul → expr_pot expr_mul'"""
         nodo = self._crear_nodo("expr_mul")
-        nodo.agregar_hijo(self._expr_pot())
-        nodo.agregar_hijo(self._expr_mul_prima())
+        nodo.agregar_hijo(self._expr_pot(contexto))
+        nodo.agregar_hijo(self._expr_mul_prima(contexto))
         return nodo
 
-    def _expr_mul_prima(self) -> NodoArbol:
+    def _expr_mul_prima(self, contexto: str = "expresion") -> NodoArbol:
         """expr_mul' → * expr_pot expr_mul' | / expr_pot expr_mul' | % expr_pot expr_mul' | ε"""
         nodo = self._crear_nodo("expr_mul'")
         if self._verificar(TokenType.OP_MULT, TokenType.OP_DIV, TokenType.OP_MOD):
             nodo.agregar_hijo(self._crear_hoja(self._avanzar()))
-            nodo.agregar_hijo(self._expr_pot())
-            nodo.agregar_hijo(self._expr_mul_prima())
+            nodo.agregar_hijo(self._expr_pot("operando derecho de operador aritmetico"))
+            nodo.agregar_hijo(self._expr_mul_prima(contexto))
         else:
             nodo.agregar_hijo(self._crear_epsilon())
         return nodo
 
-    def _expr_pot(self) -> NodoArbol:
+    def _expr_pot(self, contexto: str = "expresion") -> NodoArbol:
         """expr_pot → expr_unaria expr_pot'"""
         nodo = self._crear_nodo("expr_pot")
-        nodo.agregar_hijo(self._expr_unaria())
-        nodo.agregar_hijo(self._expr_pot_prima())
+        nodo.agregar_hijo(self._expr_unaria(contexto))
+        nodo.agregar_hijo(self._expr_pot_prima(contexto))
         return nodo
 
-    def _expr_pot_prima(self) -> NodoArbol:
+    def _expr_pot_prima(self, contexto: str = "expresion") -> NodoArbol:
         """expr_pot' → ** expr_unaria expr_pot' | ε"""
         nodo = self._crear_nodo("expr_pot'")
         if self._verificar(TokenType.OP_POT):
             nodo.agregar_hijo(self._crear_hoja(self._avanzar()))
-            nodo.agregar_hijo(self._expr_unaria())
-            nodo.agregar_hijo(self._expr_pot_prima())
+            nodo.agregar_hijo(self._expr_unaria("operando derecho de potencia"))
+            nodo.agregar_hijo(self._expr_pot_prima(contexto))
         else:
             nodo.agregar_hijo(self._crear_epsilon())
         return nodo
 
-    def _expr_unaria(self) -> NodoArbol:
+    def _expr_unaria(self, contexto: str = "expresion") -> NodoArbol:
         """expr_unaria → no expr_unaria | - expr_unaria | expr_primaria"""
         nodo = self._crear_nodo("expr_unaria")
         if self._verificar(TokenType.PR_NO):
             nodo.agregar_hijo(self._crear_hoja(self._avanzar()))
-            nodo.agregar_hijo(self._expr_unaria())
+            nodo.agregar_hijo(self._expr_unaria("operando de operador unario `no`"))
         elif self._verificar(TokenType.OP_RESTA):
             nodo.agregar_hijo(self._crear_hoja(self._avanzar()))
-            nodo.agregar_hijo(self._expr_unaria())
+            nodo.agregar_hijo(self._expr_unaria("operando de operador unario `-`"))
         else:
-            nodo.agregar_hijo(self._expr_primaria())
+            nodo.agregar_hijo(self._expr_primaria(contexto))
         return nodo
 
-    def _expr_primaria(self) -> NodoArbol:
+    def _expr_primaria(self, contexto: str = "expresion") -> NodoArbol:
         """
         expr_primaria → NUM_ENTERO | NUM_REAL | CADENA
                        | verdadero | falso | nulo
@@ -681,13 +819,25 @@ class ParserDescendenteRecursivo:
             nodo.agregar_hijo(self._sufijo_id())
         elif tok.tipo == TokenType.PAREN_IZQ:
             nodo.agregar_hijo(self._crear_hoja(self._avanzar()))
-            nodo.agregar_hijo(self._expresion())
+            nodo.agregar_hijo(self._expresion("expresion entre parentesis"))
             nodo.agregar_hijo(self._crear_hoja(self._esperar(TokenType.PAREN_DER, "expresion entre parentesis")))
         else:
-            msg = (f"Error sintactico en fila {tok.fila}, col {tok.columna}: "
-                   f"expresion inesperada: '{tok.lexema}'")
-            self.errores.append(msg)
-            raise ErrorSintactico(msg, tok.fila, tok.columna)
+            diag = self._registrar_error(
+                tok,
+                list(FIRST_EXPRESION),
+                contexto,
+                (
+                    "Se inserto una expresion faltante y se continuo sin consumir "
+                    f"`{tok.lexema}`."
+                    if tok.tipo in FOLLOW_EXPRESION_RECUPERABLE
+                    else f"Se descarto `{tok.lexema}` y se intento recuperar la expresion."
+                ),
+            )
+            nodo.agregar_hijo(self._crear_faltante("EXPRESION_FALTANTE", "<expresion>"))
+            if tok.tipo not in FOLLOW_EXPRESION_RECUPERABLE:
+                self._avanzar()
+                if self._actual().tipo in FIRST_EXPRESION:
+                    nodo.agregar_hijo(self._expr_primaria(contexto))
         return nodo
 
     def _instanciacion(self) -> NodoArbol:
@@ -726,10 +876,13 @@ class ParserDescendenteRecursivo:
             nodo.agregar_hijo(self._crear_hoja(self._avanzar()))
         else:
             tok = self._actual()
-            msg = (f"Error sintactico en fila {tok.fila}, col {tok.columna}: "
-                   f"se esperaba un tipo pero se encontro '{tok.lexema}'")
-            self.errores.append(msg)
-            raise ErrorSintactico(msg, tok.fila, tok.columna)
+            diag = self._registrar_error(
+                tok,
+                list(TIPOS_BASICOS) + [TokenType.IDENTIFICADOR],
+                "tipo",
+                "Se intento retomar el analisis en el siguiente punto de sincronizacion.",
+            )
+            raise ErrorSintactico(diag.mensaje_legacy(), tok.fila, tok.columna, diag)
         return nodo
 
     def _tipo_basico(self) -> NodoArbol:
@@ -739,8 +892,11 @@ class ParserDescendenteRecursivo:
             nodo.agregar_hijo(self._crear_hoja(self._avanzar()))
         else:
             tok = self._actual()
-            msg = (f"Error sintactico en fila {tok.fila}, col {tok.columna}: "
-                   f"se esperaba un tipo basico pero se encontro '{tok.lexema}'")
-            self.errores.append(msg)
-            raise ErrorSintactico(msg, tok.fila, tok.columna)
+            diag = self._registrar_error(
+                tok,
+                list(TIPOS_BASICOS),
+                "tipo_basico",
+                "Se intento retomar el analisis despues del tipo esperado.",
+            )
+            raise ErrorSintactico(diag.mensaje_legacy(), tok.fila, tok.columna, diag)
         return nodo

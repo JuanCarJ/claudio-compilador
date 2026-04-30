@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChevronDown, ChevronRight, BookOpen } from "lucide-react";
 
 interface GrammarPanelProps {
@@ -182,24 +181,28 @@ export function GrammarPanel({ activeProduction }: GrammarPanelProps) {
       {/* Toggle button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-14 right-3 z-50 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium shadow-lg transition-all duration-150 cursor-pointer"
+        className="fixed bottom-4 left-4 z-50 flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold shadow-xl transition-all duration-150 cursor-pointer"
         style={{
           backgroundColor: isOpen ? "var(--color-accent)" : "var(--color-surface)",
-          color: isOpen ? "var(--color-bg)" : "var(--color-text)",
-          border: "1px solid var(--color-border)",
+          color: isOpen ? "var(--color-bg)" : "var(--color-accent)",
+          border: isOpen ? "1px solid var(--color-accent)" : "2px solid var(--color-accent)",
+          boxShadow: isOpen
+            ? "0 4px 20px rgba(137,180,250,.3)"
+            : "0 4px 20px rgba(137,180,250,.15)",
         }}
       >
-        <BookOpen className="size-3.5" />
-        BNF
+        <BookOpen className="size-4" />
+        Gramatica BNF
       </button>
 
       {/* Panel */}
       {isOpen && (
         <div
-          className="fixed bottom-24 right-3 z-50 w-[380px] max-h-[70vh] rounded-lg shadow-2xl overflow-hidden flex flex-col"
+          className="fixed bottom-16 left-4 z-50 w-[420px] max-h-[80vh] rounded-lg shadow-2xl flex flex-col"
           style={{
             backgroundColor: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
+            border: "2px solid var(--color-accent)",
+            boxShadow: "0 8px 40px rgba(0,0,0,.5), 0 0 20px rgba(137,180,250,.1)",
           }}
         >
           <div
@@ -213,7 +216,7 @@ export function GrammarPanel({ activeProduction }: GrammarPanelProps) {
               52 no-terminales · 59 terminales
             </span>
           </div>
-          <ScrollArea className="flex-1">
+          <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "var(--color-border) transparent" }}>
             <div className="p-2 space-y-1">
               {GRAMMAR_SECTIONS.map((section, sIdx) => (
                 <div key={sIdx}>
@@ -241,7 +244,7 @@ export function GrammarPanel({ activeProduction }: GrammarPanelProps) {
                 </div>
               ))}
             </div>
-          </ScrollArea>
+          </div>
         </div>
       )}
     </>

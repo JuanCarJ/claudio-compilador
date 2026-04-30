@@ -447,8 +447,10 @@ class Lexer:
             self._avanzar()
         contenido = '"' + self.fuente[inicio:self.pos]
         tok = Token(contenido, TokenType.ERROR_LEXICO, f, col)
-        self.tokens.append(tok)
         self.errores.append(tok)
+        # Conserva el literal como token recuperable para que el parser no
+        # produzca una cascada sintactica cuando solo falta la comilla final.
+        self._agregar_token(contenido, TokenType.LIT_CADENA, f, col)
 
     def _leer_comentario_linea(self):
         """Lee comentario de línea (// hasta fin de línea)."""

@@ -12,6 +12,7 @@ import type {
   RecursivoResponse,
   LL1Response,
   TraducirResponse,
+  SyntaxDiagnostic,
 } from "@/lib/api";
 
 export type ResultTab = "tokens" | "arbol" | "tabla" | "traza" | "swift" | "errores";
@@ -75,26 +76,24 @@ export function ResultsPanel({
     []
   );
 
-  /* Count errors */
-  const lexErrors = lexico?.errores?.length ?? 0;
-  const synErrors = syntaxErrors.length;
-  const recErrors = recursivo?.errores?.length ?? 0;
-  const ll1SynErrors = ll1?.lexico?.errores?.length ?? 0;
-  const totalErrors = lexErrors + synErrors + recErrors + ll1SynErrors;
+  const activeLexico =
+    method === "ll1" ? ll1?.lexico ?? lexico :
+    method === "recursivo" ? recursivo?.lexico ?? lexico :
+    lexico;
 
-  /* Merge all lex errors */
-  const allLexErrors = [
-    ...(lexico?.errores ?? []),
-    ...(ll1?.lexico?.errores ?? []),
-  ];
+  const syntaxDiagnostics: SyntaxDiagnostic[] =
+    method === "ll1"
+      ? ll1?.errores_sintacticos ?? []
+      : method === "recursivo"
+      ? recursivo?.errores_sintacticos ?? []
+      : [];
 
-  const allSyntaxErrors = [
-    ...syntaxErrors,
-    ...(recursivo?.errores ?? []),
-  ];
+  const lexErrors = activeLexico?.errores?.length ?? 0;
+  const runtimeErrors = syntaxErrors.length;
+  const totalErrors = lexErrors + syntaxDiagnostics.length + runtimeErrors;
 
   /* Extra counts for badges */
-  const tokenCount = lexico?.total_tokens ?? ll1?.lexico?.total_tokens ?? 0;
+  const tokenCount = activeLexico?.total_tokens ?? 0;
   const traceCount = ll1?.total_pasos ?? 0;
 
   return (
@@ -166,9 +165,15 @@ export function ResultsPanel({
         )}
         {activeTab === "arbol" && (
           <TreeView
-            arbol={recursivo?.arbol ?? ll1?.arbol ?? null}
-            totalNodos={recursivo?.total_nodos}
-            profundidad={recursivo?.profundidad}
+            arbol={
+              recursivo?.arbol ??
+              recursivo?.arbol_parcial ??
+              ll1?.arbol ??
+              ll1?.arbol_parcial ??
+              null
+            }
+            totalNodos={recursivo?.total_nodos ?? ll1?.total_nodos}
+            profundidad={recursivo?.profundidad ?? ll1?.profundidad}
           />
         )}
         {activeTab === "tabla" && (
@@ -185,6 +190,7 @@ export function ResultsPanel({
         )}
         {activeTab === "traza" && (
           <TraceView
+            key={`${ll1?.total_pasos ?? 0}-${ll1?.valido ?? "empty"}-${ll1?.traza?.[Math.max(0, (ll1?.traza?.length ?? 1) - 1)]?.accion ?? ""}`}
             traza={ll1?.traza ?? []}
             valido={ll1?.valido ?? false}
             onHighlightCell={handleHighlightCell}
@@ -199,8 +205,9 @@ export function ResultsPanel({
         )}
         {activeTab === "errores" && (
           <ErrorsView
-            errores={allLexErrors}
-            syntaxErrors={allSyntaxErrors}
+            errores={activeLexico?.errores ?? []}
+            syntaxDiagnostics={syntaxDiagnostics}
+            runtimeErrors={syntaxErrors}
             onClickError={onClickError}
           />
         )}

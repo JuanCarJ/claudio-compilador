@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Search } from "lucide-react";
 
 interface LL1TableProps {
   primero: Record<string, string[]>;
@@ -18,12 +18,21 @@ interface LL1TableProps {
 function SetSection({
   title,
   data,
+  filter,
 }: {
   title: string;
   data: Record<string, string[]>;
+  filter: string;
 }) {
   const [open, setOpen] = useState(true);
   const entries = Object.entries(data);
+  const q = filter.toLowerCase();
+
+  const filteredEntries = q
+    ? entries.filter(([nt, symbols]) =>
+        nt.toLowerCase().includes(q) || symbols.some((s) => s.toLowerCase().includes(q))
+      )
+    : entries;
 
   return (
     <section aria-label={title}>
@@ -35,34 +44,43 @@ function SetSection({
       >
         {open ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
         {title}
+        {q && <span style={{ color: "var(--color-accent)", fontSize: ".65rem", fontWeight: 400, textTransform: "none" }}> ({filteredEntries.length}/{entries.length})</span>}
       </button>
       {open && (
         <div className="mb-3 flex flex-wrap gap-2">
-          {entries.map(([nt, symbols]) => (
-            <div
-              key={nt}
-              className="rounded-md px-2 py-1 text-xs font-mono"
-              style={{
-                backgroundColor: "var(--color-surface-2)",
-                border: "1px solid var(--color-border)",
-                color: "var(--color-text)",
-              }}
-            >
-              <span style={{ color: "var(--tree-nonterminal)" }} className="font-semibold">
-                {nt}
-              </span>
-              <span style={{ color: "var(--color-muted)" }}> = {"{ "}</span>
-              {symbols.map((s, i) => (
-                <span key={i}>
-                  <span style={{ color: "var(--tree-terminal)" }}>{s}</span>
-                  {i < symbols.length - 1 && (
-                    <span style={{ color: "var(--color-muted)" }}>, </span>
-                  )}
+          {filteredEntries.map(([nt, symbols]) => {
+            const isMatch = q && nt.toLowerCase().includes(q);
+            return (
+              <div
+                key={nt}
+                className="rounded-md px-2 py-1 text-xs font-mono"
+                style={{
+                  backgroundColor: isMatch ? "rgba(137,180,250,.1)" : "var(--color-surface-2)",
+                  border: isMatch ? "1.5px solid var(--color-accent)" : "1px solid var(--color-border)",
+                  color: "var(--color-text)",
+                }}
+              >
+                <span style={{ color: "var(--tree-nonterminal)" }} className="font-semibold">
+                  {nt}
                 </span>
-              ))}
-              <span style={{ color: "var(--color-muted)" }}>{" }"}</span>
-            </div>
-          ))}
+                <span style={{ color: "var(--color-muted)" }}> = {"{ "}</span>
+                {symbols.map((s, i) => (
+                  <span key={i}>
+                    <span style={{ color: "var(--tree-terminal)" }}>{s}</span>
+                    {i < symbols.length - 1 && (
+                      <span style={{ color: "var(--color-muted)" }}>, </span>
+                    )}
+                  </span>
+                ))}
+                <span style={{ color: "var(--color-muted)" }}>{" }"}</span>
+              </div>
+            );
+          })}
+          {filteredEntries.length === 0 && (
+            <p className="text-xs" style={{ color: "var(--color-muted)" }}>
+              Sin resultados para &quot;{filter}&quot;
+            </p>
+          )}
         </div>
       )}
     </section>
@@ -79,6 +97,22 @@ export function LL1Table({
   conflictos,
   highlightedCell,
 }: LL1TableProps) {
+  const [tableSearch, setTableSearch] = useState("");
+  const [setsSearch, setSetsSearch] = useState("");
+
+  const filteredNTs = useMemo(() => {
+    if (!tableSearch.trim()) return noTerminales;
+    const q = tableSearch.toLowerCase();
+    return noTerminales.filter((nt) => {
+      if (nt.toLowerCase().includes(q)) return true;
+      const row = tablaLL1[nt];
+      if (row) {
+        return Object.values(row).some((prod) => prod.toLowerCase().includes(q));
+      }
+      return false;
+    });
+  }, [noTerminales, tablaLL1, tableSearch]);
+
   const hasData = noTerminales.length > 0;
 
   if (!hasData) {
@@ -126,18 +160,64 @@ export function LL1Table({
           </div>
         )}
 
+        {/* Search for FIRST / FOLLOW */}
+        <div
+          className="flex items-center gap-1.5 rounded-md px-2 py-1.5 mb-2"
+          style={{ backgroundColor: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
+        >
+          <Search className="size-3" style={{ color: "var(--color-muted)" }} />
+          <input
+            type="text"
+            value={setsSearch}
+            onChange={(e) => setSetsSearch(e.target.value)}
+            placeholder="Buscar en FIRST/FOLLOW... (ej: arg_lista, sentencia)"
+            className="flex-1 bg-transparent text-[0.7rem] outline-none"
+            style={{ color: "var(--color-text)" }}
+          />
+          {setsSearch && (
+            <button
+              onClick={() => setSetsSearch("")}
+              className="text-[0.6rem] px-1.5 py-0.5 rounded cursor-pointer"
+              style={{ color: "var(--color-muted)", backgroundColor: "var(--color-surface)" }}
+            >
+              limpiar
+            </button>
+          )}
+        </div>
+
         {/* FIRST / FOLLOW */}
-        <SetSection title="FIRST (Primero)" data={primero} />
-        <SetSection title="FOLLOW (Siguiente)" data={siguiente} />
+        <SetSection title="FIRST (Primero)" data={primero} filter={setsSearch} />
+        <SetSection title="FOLLOW (Siguiente)" data={siguiente} filter={setsSearch} />
 
         {/* M[A,a] table */}
         <section aria-label="Tabla M[A,a]">
-          <h3
-            className="mb-2 text-xs font-semibold uppercase tracking-wider"
-            style={{ color: "var(--color-muted)" }}
-          >
-            Tabla M[A,a]
-          </h3>
+          <div className="flex items-center gap-3 mb-2">
+            <h3
+              className="text-xs font-semibold uppercase tracking-wider"
+              style={{ color: "var(--color-muted)" }}
+            >
+              Tabla M[A,a]
+            </h3>
+            <div
+              className="flex items-center gap-1.5 rounded-md px-2 py-1 flex-1 max-w-[280px]"
+              style={{ backgroundColor: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
+            >
+              <Search className="size-3" style={{ color: "var(--color-muted)" }} />
+              <input
+                type="text"
+                value={tableSearch}
+                onChange={(e) => setTableSearch(e.target.value)}
+                placeholder="Buscar no-terminal o produccion..."
+                className="flex-1 bg-transparent text-[0.7rem] outline-none"
+                style={{ color: "var(--color-text)" }}
+              />
+            </div>
+            {tableSearch && (
+              <span className="text-[0.6rem]" style={{ color: "var(--color-muted)" }}>
+                {filteredNTs.length}/{noTerminales.length} filas
+              </span>
+            )}
+          </div>
           <div
             className="overflow-auto rounded-md"
             style={{ border: "1px solid var(--color-border)", maxHeight: "400px" }}
@@ -177,7 +257,7 @@ export function LL1Table({
                 </tr>
               </thead>
               <tbody>
-                {noTerminales.map((nt) => (
+                {filteredNTs.map((nt) => (
                   <tr key={nt}>
                     <td
                       className="px-2 py-1 font-semibold whitespace-nowrap"

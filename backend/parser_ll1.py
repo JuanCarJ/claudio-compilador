@@ -13,6 +13,12 @@ explicita mostrando la traza paso a paso.
 from typing import List, Dict, Set, Tuple, Optional
 from lexer import Token, TokenType
 from arbol import NodoArbol
+from diagnostics import (
+    SYNC_TERMINALES,
+    SyntaxDiagnostic,
+    crear_diagnostico,
+    token_a_terminal as diagnostico_token_a_terminal,
+)
 
 
 # ─────────────────────────────────────────────
@@ -83,7 +89,7 @@ TERMINAL_MAP: Dict[TokenType, str] = {
 }
 
 def token_a_terminal(tok: Token) -> str:
-    return TERMINAL_MAP.get(tok.tipo, tok.lexema)
+    return TERMINAL_MAP.get(tok.tipo, diagnostico_token_a_terminal(tok))
 
 
 # ─────────────────────────────────────────────
@@ -94,6 +100,25 @@ def token_a_terminal(tok: Token) -> str:
 
 EPSILON = "ε"
 SIMBOLO_INICIO = "programa"
+
+FIRST_EXPR_TERMINALES = {
+    "ID", "NUM_ENTERO", "NUM_REAL", "CADENA_LIT", "verdadero", "falso",
+    "nulo", "nuevo", "no", "-", "(", "este",
+}
+
+FIRST_SENTENCIA_TERMINALES = {
+    "ID", "este", "si", "para", "mientras", "retornar", "imprimir",
+    "romper", "continuar", "var", "sea",
+}
+
+FIRST_DECLARACION_TERMINALES = FIRST_SENTENCIA_TERMINALES | {
+    "funcion", "clase", "importar",
+}
+
+CIERRE_TERMINALES = {
+    "fin_si", "sino", "fin_para", "fin_mientras",
+    "fin_funcion", "fin_clase", "$",
+}
 
 GRAMATICA: Dict[str, List[List[str]]] = {
     # -- Programa y declaraciones --
@@ -393,6 +418,7 @@ class ParserPredictivoLL1:
                                               TokenType.COMENTARIO_BLOQUE,
                                               TokenType.ERROR_LEXICO)]
         self.motor = MotorLL1(GRAMATICA, SIMBOLO_INICIO)
+        self.errores_sintacticos: List[SyntaxDiagnostic] = []
 
     def obtener_primero(self) -> Dict[str, Set[str]]:
         resultado = {}
@@ -421,6 +447,55 @@ class ParserPredictivoLL1:
     def es_ll1(self) -> bool:
         return self.motor.es_ll1()
 
+    def obtener_errores_sintacticos(self) -> List[SyntaxDiagnostic]:
+        return self.errores_sintacticos
+
+    def _token_actual(self, tokens_info: List[Token], idx: int) -> Token:
+        if idx < len(tokens_info):
+            return tokens_info[idx]
+        return Token("EOF", TokenType.FIN_DE_ARCHIVO, 0, 0)
+
+    def _siguiente_terminal_en_pila(
+        self,
+        pila: List[Tuple[str, Optional[NodoArbol]]],
+    ) -> Optional[str]:
+        for simbolo, _ in reversed(pila[:-1]):
+            if simbolo != "$" and simbolo not in self.motor.no_terminales:
+                return simbolo
+        return None
+
+    def _debe_insertar_terminal(self, esperado: str, actual: str) -> bool:
+        if actual == "$":
+            return True
+        if esperado == "=":
+            return actual in FIRST_EXPR_TERMINALES or actual in FIRST_DECLARACION_TERMINALES
+        if esperado in {"entonces", "hacer"}:
+            return actual in FIRST_SENTENCIA_TERMINALES or actual in CIERRE_TERMINALES
+        if esperado in {"fin_si", "fin_para", "fin_mientras", "fin_funcion", "fin_clase"}:
+            return actual in FIRST_DECLARACION_TERMINALES or actual in CIERRE_TERMINALES
+        if esperado == ")":
+            return actual in FIRST_DECLARACION_TERMINALES or actual in CIERRE_TERMINALES
+        if esperado == "ID":
+            return actual in {"=", "(", ")", "hacer", "hereda"} or actual in CIERRE_TERMINALES
+        return False
+
+    def _registrar_error(
+        self,
+        token: Token,
+        esperados: List[str],
+        contexto: str,
+        recuperacion: str,
+    ) -> SyntaxDiagnostic:
+        diag = crear_diagnostico(
+            indice=len(self.errores_sintacticos) + 1,
+            token=token,
+            esperados=esperados,
+            contexto=contexto,
+            recuperacion=recuperacion,
+        )
+        self.errores_sintacticos.append(diag)
+        return diag
+
     def analizar(self) -> Tuple[List[dict], Optional[NodoArbol], bool]:
         """
         Ejecuta el analisis con pila explicita.
@@ -430,6 +505,8 @@ class ParserPredictivoLL1:
             arbol: NodoArbol raiz (o None si falla)
             aceptado: bool
         """
+        self.errores_sintacticos = []
+
         # Preparar entrada como lista de terminales
         entrada = [token_a_terminal(t) for t in self.tokens_orig]
         tokens_info = list(self.tokens_orig)
@@ -447,8 +524,8 @@ class ParserPredictivoLL1:
             paso_num += 1
             tope_simbolo, tope_nodo = pila[-1]
             actual = entrada[idx] if idx < len(entrada) else "$"
-            actual_lexema = (tokens_info[idx].lexema
-                            if idx < len(tokens_info) else "$")
+            actual_token = self._token_actual(tokens_info, idx)
+            actual_lexema = "EOF" if actual == "$" else actual_token.lexema
 
             pila_str = " ".join(s for s, _ in reversed(pila) if s != "$")
             if not pila_str:
@@ -464,16 +541,29 @@ class ParserPredictivoLL1:
                     'entrada': "$",
                     'accion': "ACEPTAR"
                 })
-                return pasos, raiz, True
+                return pasos, raiz, len(self.errores_sintacticos) == 0
 
             if tope_simbolo == "$":
+                diag = self._registrar_error(
+                    actual_token,
+                    ["$"],
+                    "fin de programa",
+                    "Se descarto entrada restante hasta encontrar fin de archivo.",
+                )
                 pasos.append({
                     'paso': paso_num,
                     'pila': pila_str,
                     'entrada': entrada_str,
-                    'accion': f"ERROR: pila vacia pero queda entrada '{actual_lexema}'"
+                    'accion': (
+                        f"ERROR [{diag.indice}]: pila vacia pero queda entrada "
+                        f"'{actual_lexema}'"
+                    )
                 })
-                return pasos, raiz, False
+                if actual == "$":
+                    pila.pop()
+                else:
+                    idx += 1
+                continue
 
             # Terminal en tope de pila
             if tope_simbolo not in self.motor.no_terminales:
@@ -489,28 +579,107 @@ class ParserPredictivoLL1:
                         tope_nodo.lexema = actual_lexema
                     idx += 1
                 else:
+                    recuperacion = (
+                        f"Se asumio que faltaba `{tope_simbolo}` y se continuo "
+                        "sin consumir el token actual."
+                    )
+                    consumir_actual = False
+                    siguiente_en_pila = pila[-2][0] if len(pila) >= 2 else None
+                    if (
+                        not self._debe_insertar_terminal(tope_simbolo, actual)
+                        and
+                        actual not in SYNC_TERMINALES
+                        and actual != "$"
+                        and actual != siguiente_en_pila
+                    ):
+                        recuperacion = (
+                            f"Se descarto el token inesperado `{actual_lexema}` "
+                            "para buscar un punto de sincronizacion."
+                        )
+                        consumir_actual = True
+                    diag = self._registrar_error(
+                        actual_token,
+                        [tope_simbolo],
+                        f"terminal `{tope_simbolo}`",
+                        recuperacion,
+                    )
                     pasos.append({
                         'paso': paso_num,
                         'pila': pila_str,
                         'entrada': entrada_str,
-                        'accion': (f"ERROR: se esperaba '{tope_simbolo}' "
+                        'accion': (f"ERROR [{diag.indice}]: se esperaba '{tope_simbolo}' "
                                    f"pero se encontro '{actual_lexema}'")
                     })
-                    return pasos, raiz, False
+                    if consumir_actual:
+                        idx += 1
+                    else:
+                        pila.pop()
+                    pasos.append({
+                        'paso': paso_num,
+                        'pila': pila_str,
+                        'entrada': entrada_str,
+                        'accion': f"RECUPERACION [{diag.indice}]: {recuperacion}",
+                    })
             else:
                 # No-terminal: consultar tabla
                 prod = self.motor.tabla.get(tope_simbolo, {}).get(actual)
                 if prod is None:
-                    esperados = list(self.motor.tabla.get(tope_simbolo, {}).keys())
+                    siguiente_terminal = self._siguiente_terminal_en_pila(pila)
+                    if actual == "$" and siguiente_terminal in {
+                        "fin_si",
+                        "fin_para",
+                        "fin_mientras",
+                        "fin_funcion",
+                        "fin_clase",
+                    }:
+                        recuperacion = (
+                            f"Se omitio `{tope_simbolo}` para llegar al cierre "
+                            f"obligatorio `{siguiente_terminal}`."
+                        )
+                        pasos.append({
+                            'paso': paso_num,
+                            'pila': pila_str,
+                            'entrada': entrada_str,
+                            'accion': f"RECUPERACION: {recuperacion}",
+                        })
+                        pila.pop()
+                        continue
+                    esperados = sorted(self.motor.tabla.get(tope_simbolo, {}).keys())
+                    follow = self.motor.siguiente.get(tope_simbolo, set())
+                    recuperacion = (
+                        f"Se descarto `{actual_lexema}` para buscar una entrada valida "
+                        f"para `{tope_simbolo}`."
+                    )
+                    if actual in follow or actual in SYNC_TERMINALES or actual == "$":
+                        recuperacion = (
+                            f"Se omitio el no-terminal `{tope_simbolo}` y se reanudo "
+                            "en un token de sincronizacion."
+                        )
+                    diag = self._registrar_error(
+                        actual_token,
+                        esperados,
+                        tope_simbolo,
+                        recuperacion,
+                    )
                     pasos.append({
                         'paso': paso_num,
                         'pila': pila_str,
                         'entrada': entrada_str,
-                        'accion': (f"ERROR: no hay produccion para "
+                        'accion': (f"ERROR [{diag.indice}]: no hay produccion para "
                                    f"M[{tope_simbolo}, {actual_lexema}]. "
                                    f"Se esperaba: {', '.join(sorted(esperados)[:8])}")
                     })
-                    return pasos, raiz, False
+                    if actual in follow or actual in SYNC_TERMINALES or actual == "$":
+                        pila.pop()
+                    else:
+                        idx += 1
+                    pasos.append({
+                        'paso': paso_num,
+                        'pila': pila_str,
+                        'entrada': entrada_str,
+                        'accion': f"RECUPERACION [{diag.indice}]: {recuperacion}",
+                    })
+                    continue
 
                 # Registrar produccion
                 prod_str = (f"{tope_simbolo} → {' '.join(prod)}"

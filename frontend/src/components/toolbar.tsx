@@ -2,13 +2,6 @@
 
 import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Play, Loader2, FileCode, Braces, Table2, LayoutGrid } from "lucide-react";
 import {
@@ -42,7 +35,6 @@ export function Toolbar({
   onMethodChange,
   programas,
   selectedProgram,
-  onProgramChange,
   onAnalyze,
   isLoading,
   onOpenGallery,
@@ -132,41 +124,20 @@ export function Toolbar({
 
       <Separator orientation="vertical" className="!h-5" style={{ backgroundColor: "var(--color-border)" }} />
 
-      {/* Program selector */}
-      {programKeys.length > 0 && (
-        <>
-          <Select value={selectedProgram} onValueChange={(v) => { if (v) onProgramChange(v); }}>
-            <SelectTrigger
-              size="sm"
-              className="w-[200px] max-w-[240px]"
-              style={{ borderColor: "var(--color-border)", color: "var(--color-text)" }}
-              aria-label="Programa de ejemplo"
-            >
-              <SelectValue>
-                {selectedProgram || "Programas de ejemplo..."}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent
-              style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}
-            >
-              {programKeys.map((name) => (
-                <SelectItem key={name} value={name}>
-                  {name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {onOpenGallery && (
-            <button
-              onClick={onOpenGallery}
-              className="flex items-center gap-1 rounded-md px-2 py-1 text-[0.7rem] font-medium cursor-pointer transition-colors"
-              style={{ color: "var(--color-muted)", backgroundColor: "var(--color-surface-2)" }}
-              title="Ver galeria de programas"
-            >
-              <LayoutGrid className="size-3" />
-            </button>
-          )}
-        </>
+      {/* Program gallery button */}
+      {programKeys.length > 0 && onOpenGallery && (
+        <button
+          onClick={onOpenGallery}
+          className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium cursor-pointer transition-colors"
+          style={{
+            color: "var(--color-text)",
+            backgroundColor: "var(--color-surface-2)",
+            border: "1px solid var(--color-border)",
+          }}
+        >
+          <LayoutGrid className="size-3.5" />
+          <span>{selectedProgram || "Programas de ejemplo"}</span>
+        </button>
       )}
 
       <div className="flex-1" />

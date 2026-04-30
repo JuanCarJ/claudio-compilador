@@ -93,12 +93,6 @@ export function TraceView({ traza, valido, onHighlightCell }: TraceViewProps) {
     [total]
   );
 
-  /* Reset step when traza changes */
-  useEffect(() => {
-    setCurrentStep(0);
-    setIsPlaying(false);
-  }, [traza]);
-
   if (total === 0) {
     return (
       <div className="flex h-full items-center justify-center" style={{ color: "var(--color-muted)" }}>
@@ -110,6 +104,7 @@ export function TraceView({ traza, valido, onHighlightCell }: TraceViewProps) {
   /* Parse the stack string for visual display */
   const pilaItems = current?.pila?.split(/\s+/).filter(Boolean) ?? [];
   const isError = current?.accion?.includes("ERROR") ?? false;
+  const isRecovery = current?.accion?.includes("RECUPERACION") ?? false;
   const isAccept = current?.accion === "ACEPTAR";
   const isMatch = current?.accion?.startsWith("Emparejar") ?? false;
 
@@ -225,6 +220,8 @@ export function TraceView({ traza, valido, onHighlightCell }: TraceViewProps) {
           style={{
             backgroundColor: isError
               ? "rgba(243, 139, 168, 0.08)"
+              : isRecovery
+              ? "rgba(249, 226, 175, 0.08)"
               : isAccept
               ? "rgba(166, 227, 161, 0.08)"
               : isMatch
@@ -233,6 +230,8 @@ export function TraceView({ traza, valido, onHighlightCell }: TraceViewProps) {
             borderBottom: "1px solid var(--color-border)",
             color: isError
               ? "var(--color-error)"
+              : isRecovery
+              ? "var(--color-warning)"
               : isAccept
               ? "var(--color-success)"
               : isMatch
@@ -273,6 +272,7 @@ export function TraceView({ traza, valido, onHighlightCell }: TraceViewProps) {
                   const isActive = idx === currentStep;
                   const isPast = idx < currentStep;
                   const isErrRow = paso.accion?.includes("ERROR");
+                  const isRecoveryRow = paso.accion?.includes("RECUPERACION");
                   const isAcceptRow = paso.accion === "ACEPTAR";
                   return (
                     <tr
@@ -289,6 +289,8 @@ export function TraceView({ traza, valido, onHighlightCell }: TraceViewProps) {
                         backgroundColor: isActive
                           ? isErrRow
                             ? "rgba(243, 139, 168, 0.12)"
+                            : isRecoveryRow
+                            ? "rgba(249, 226, 175, 0.12)"
                             : isAcceptRow
                             ? "rgba(166, 227, 161, 0.12)"
                             : "rgba(137, 180, 250, 0.12)"
@@ -307,6 +309,8 @@ export function TraceView({ traza, valido, onHighlightCell }: TraceViewProps) {
                         style={{
                           color: isErrRow
                             ? "var(--color-error)"
+                            : isRecoveryRow
+                            ? "var(--color-warning)"
                             : isAcceptRow
                             ? "var(--color-success)"
                             : paso.accion?.startsWith("Emparejar")

@@ -15,6 +15,9 @@ export interface LexicoError {
   fila: number;
   columna: number;
   mensaje: string;
+  esperado?: string;
+  simbolo_probable?: string;
+  sugerencia_deterministica?: string;
 }
 
 export interface SimboloEntry {
@@ -29,6 +32,29 @@ export interface LexicoResponse {
   total_errores: number;
 }
 
+export interface AISuggestion {
+  indice: number;
+  explicacion_usuario: string;
+  correccion_sugerida: string;
+  mini_ejemplo: string;
+  confianza: number;
+  estado_ia: "pendiente" | "generando" | "lista" | "no_disponible" | "error" | string;
+}
+
+export interface SyntaxDiagnostic {
+  indice: number;
+  fila: number;
+  columna: number;
+  lexema_encontrado: string;
+  tipo_encontrado: string;
+  esperados: string[];
+  contexto: string;
+  sugerencia_deterministica: string;
+  sugerencia_ia: AISuggestion | null;
+  estado_ia: "pendiente" | "generando" | "lista" | "no_disponible" | "error" | string;
+  recuperacion: string;
+}
+
 export interface TreeNode {
   simbolo: string;
   lexema: string;
@@ -39,10 +65,13 @@ export interface TreeNode {
 
 export interface RecursivoResponse {
   valido: boolean;
-  arbol: TreeNode;
+  arbol: TreeNode | null;
+  arbol_parcial: TreeNode | null;
   total_nodos: number;
   profundidad: number;
   errores: string[];
+  errores_sintacticos: SyntaxDiagnostic[];
+  total_errores_sintacticos: number;
   lexico: LexicoResponse;
 }
 
@@ -55,7 +84,11 @@ export interface TrazaPaso {
 
 export interface LL1Response {
   valido: boolean;
-  arbol: TreeNode;
+  arbol: TreeNode | null;
+  arbol_parcial: TreeNode | null;
+  errores: string[];
+  total_nodos: number;
+  profundidad: number;
   traza: TrazaPaso[];
   total_pasos: number;
   tabla_ll1: Record<string, Record<string, string>>;
@@ -65,7 +98,14 @@ export interface LL1Response {
   no_terminales: string[];
   es_ll1: boolean;
   conflictos: string[];
+  errores_sintacticos: SyntaxDiagnostic[];
+  total_errores_sintacticos: number;
   lexico: LexicoResponse;
+}
+
+export interface AISuggestionsResponse {
+  estado: string;
+  sugerencias: AISuggestion[];
 }
 
 export interface MapeoLinea {
@@ -117,4 +157,15 @@ export function analizarLL1(codigo: string) {
 
 export function traducirSwift(codigo: string) {
   return post<TraducirResponse>("/traducir", codigo);
+}
+
+export function generarSugerenciasIA(codigo: string, diagnosticos: SyntaxDiagnostic[]) {
+  return fetch(`${BASE}/sugerencias-ia`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ codigo, diagnosticos }),
+  }).then((r) => {
+    if (!r.ok) throw new Error(`Error ${r.status}`);
+    return r.json() as Promise<AISuggestionsResponse>;
+  });
 }

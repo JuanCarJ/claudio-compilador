@@ -54,16 +54,20 @@ export function TreeView({ arbol, totalNodos, profundidad }: TreeViewProps) {
   /* Filter tree based on collapsed nodes */
   const filterTree = useCallback(
     (node: TreeNode, path: string = "root"): TreeNode => {
-      const id = nodeId(node, path);
-      if (collapsedSet.has(id)) {
-        return { ...node, hijos: [] };
+      function walk(current: TreeNode, currentPath: string): TreeNode {
+        const id = nodeId(current, currentPath);
+        if (collapsedSet.has(id)) {
+          return { ...current, hijos: [] };
+        }
+        return {
+          ...current,
+          hijos: (current.hijos || []).map((child, i) =>
+            walk(child, `${id}/${i}`)
+          ),
+        };
       }
-      return {
-        ...node,
-        hijos: (node.hijos || []).map((child, i) =>
-          filterTree(child, `${id}/${i}`)
-        ),
-      };
+
+      return walk(node, path);
     },
     [collapsedSet, nodeId]
   );
@@ -78,9 +82,12 @@ export function TreeView({ arbol, totalNodos, profundidad }: TreeViewProps) {
     if (!filteredTree) return null;
 
     const root = d3Hierarchy.hierarchy(filteredTree, (d) => d.hijos || []);
-    const nodeWidth = 110;
-    const nodeHeight = 50;
-    const treeLayout = d3Hierarchy.tree<TreeNode>().nodeSize([nodeWidth, nodeHeight]);
+    const nodeWidth = 90;
+    const nodeHeight = 55;
+    const treeLayout = d3Hierarchy
+      .tree<TreeNode>()
+      .nodeSize([nodeWidth, nodeHeight])
+      .separation((a, b) => (a.parent === b.parent ? 1 : 1.2));
     treeLayout(root);
 
     return root;
@@ -102,13 +109,27 @@ export function TreeView({ arbol, totalNodos, profundidad }: TreeViewProps) {
 
     svg.call(zoom);
 
-    /* Center the tree initially */
+    /* Center the tree based on its actual bounding box */
     if (layoutData) {
-      const centerX = dimensions.width / 2;
-      const centerY = 40;
+      let minX = Infinity, maxX = -Infinity, maxY = 0;
+      layoutData.each((node) => {
+        const nx = node.x ?? 0;
+        const ny = node.y ?? 0;
+        if (nx < minX) minX = nx;
+        if (nx > maxX) maxX = nx;
+        if (ny > maxY) maxY = ny;
+      });
+      const treeWidth = maxX - minX + 200;
+      const treeHeight = maxY + 100;
+      const scaleX = dimensions.width / treeWidth;
+      const scaleY = dimensions.height / treeHeight;
+      const scale = Math.min(scaleX, scaleY, 1) * 0.85;
+      const treeCenterX = (minX + maxX) / 2;
+      const offsetX = dimensions.width / 2 - treeCenterX * scale;
+      const offsetY = 30;
       svg.call(
         zoom.transform,
-        d3Zoom.zoomIdentity.translate(centerX, centerY).scale(0.85)
+        d3Zoom.zoomIdentity.translate(offsetX, offsetY).scale(scale)
       );
     }
 
