@@ -78,13 +78,13 @@ export function ResultsPanel({
 
   const activeLexico =
     method === "ll1" ? ll1?.lexico ?? lexico :
-    method === "recursivo" ? recursivo?.lexico ?? lexico :
+    method === "recursivo" || method === "lexico" ? recursivo?.lexico ?? lexico :
     lexico;
 
   const syntaxDiagnostics: SyntaxDiagnostic[] =
     method === "ll1"
       ? ll1?.errores_sintacticos ?? []
-      : method === "recursivo"
+      : method === "recursivo" || method === "lexico"
       ? recursivo?.errores_sintacticos ?? []
       : [];
 

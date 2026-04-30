@@ -7,7 +7,6 @@ import { CodeEditor } from "@/components/code-editor";
 import { ResultsPanel, type ResultTab } from "@/components/results-panel";
 import {
   fetchProgramas,
-  analizarLexico,
   analizarRecursivo,
   analizarLL1,
   traducirSwift,
@@ -45,7 +44,7 @@ const METHOD_TAB: Record<AnalysisMethod, ResultTab> = {
 };
 
 const METHOD_DESCRIPTIONS: Record<AnalysisMethod, string> = {
-  lexico: "Tokeniza el codigo fuente en lexemas con tipo, fila y columna",
+  lexico: "Tokeniza el codigo fuente y valida errores para mostrar diagnosticos completos",
   recursivo: "Una funcion por cada no-terminal — construye el arbol de derivacion",
   ll1: "Tabla M[A,a] + pila explicita — traza paso a paso del analisis",
 };
@@ -181,9 +180,10 @@ function HomeContent() {
     try {
       switch (method) {
         case "lexico": {
-          const res = await analizarLexico(code);
+          const res = await analizarRecursivo(code);
           if (analysisRunId.current !== runId) return;
-          setLexico(res);
+          setRecursivo(res);
+          if (res.lexico) setLexico(res.lexico);
           setActiveTab("tokens");
           /* Also attempt translation */
           traducirSwift(code)
@@ -194,11 +194,43 @@ function HomeContent() {
             })
             .catch(() => {});
           /* Highlight error lines */
-          if (res.errores?.length) {
-            setErrorLines(res.errores.map((e) => e.fila));
+          const lines = [
+            ...(res.lexico?.errores?.map((e) => e.fila) ?? []),
+            ...syntaxLines(res.errores_sintacticos),
+          ];
+          if (lines.length) {
+            setErrorLines(lines);
           }
-          if (res.errores?.length) {
+          if (res.lexico?.errores?.length || res.errores_sintacticos?.length) {
             setActiveTab("errores");
+          }
+          if (res.errores_sintacticos?.length) {
+            generarSugerenciasIA(code, res.errores_sintacticos)
+              .then((ia) => {
+                if (analysisRunId.current !== runId) return;
+                setRecursivo((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        errores_sintacticos: attachAISuggestions(prev.errores_sintacticos, ia.sugerencias),
+                      }
+                    : prev
+                );
+              })
+              .catch(() => {
+                if (analysisRunId.current !== runId) return;
+                setRecursivo((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        errores_sintacticos: prev.errores_sintacticos.map((diag) => ({
+                          ...diag,
+                          estado_ia: "error",
+                        })),
+                      }
+                    : prev
+                );
+              });
           }
           break;
         }
