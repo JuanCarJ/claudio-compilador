@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Claudio - Gramatica ampliada con reglas semanticas</title>
+  <style>
+    :root {
+      --ink: #151515;
+      --muted: #555;
+      --rule: #b42318;
+      --amber: #fff3cd;
+      --amber-border: #f0c36a;
+      --line: #ddd;
+    }
+    body {
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.45;
+      margin: 36px auto;
+      max-width: 920px;
+      padding: 0 28px;
+    }
+    h1, h2, h3 { line-height: 1.2; }
+    h1 { font-size: 28px; margin-bottom: 4px; }
+    h2 { border-bottom: 1px solid var(--line); font-size: 20px; margin-top: 28px; padding-bottom: 6px; }
+    h3 { font-size: 16px; margin: 18px 0 8px; }
+    code, pre { font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace; }
+    pre {
+      background: #f7f7f7;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow-x: auto;
+      padding: 10px 12px;
+      white-space: pre-wrap;
+    }
+    table { border-collapse: collapse; font-size: 13px; width: 100%; }
+    th, td { border: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+    th { background: #f2f2f2; }
+    .meta { color: var(--muted); font-size: 13px; margin-top: 0; }
+    .prod {
+      color: var(--rule);
+      font-weight: 700;
+      margin: 8px 0;
+    }
+    .sem {
+      background: var(--amber);
+      border: 1px solid var(--amber-border);
+      border-radius: 6px;
+      margin: 8px 0 14px;
+      padding: 10px 12px;
+    }
+    .sem strong { display: block; margin-bottom: 6px; }
+    .sem ul { margin: 6px 0 0 20px; padding: 0; }
+    .small { color: var(--muted); font-size: 12px; }
+    @media print {
+      body { margin: 18mm auto; max-width: none; }
+      .sem { break-inside: avoid; }
+      h2 { break-after: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Claudio - Gramatica ampliada con reglas semanticas</h1>
+  <p class="meta">Quiz 4 / Entrega 4 - Compiladores. Lenguaje fuente: Claudio (espanol) -> Swift.</p>
+  <p>
+    Convencion visual: las producciones sintacticas originales se presentan en rojo.
+    Las reglas semanticas agregadas se presentan en texto negro sobre fondo ambar.
+  </p>
+
+  <h2>Resumen de reglas implementadas</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Regla</th>
+        <th>Nodo gramatical</th>
+        <th>Atributos principales</th>
+        <th>Dominio / restriccion</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>SEM-1</td><td>Declaracion duplicada</td><td><code>decl_variable</code>, <code>def_funcion</code>, parametros, clases</td><td><code>id.nombre</code> sintetizado; <code>ambito</code> heredado</td><td><code>nombre notin tablaSimbolos[ambitoActual]</code></td></tr>
+      <tr><td>SEM-2</td><td>Identificador no declarado</td><td><code>sent_id</code>, expresiones</td><td><code>id.tipo</code> sintetizado desde tabla</td><td><code>nombre in tablaSimbolos</code></td></tr>
+      <tr><td>SEM-3</td><td>Constante reasignada</td><td><code>sent_id</code></td><td><code>id.inmutable</code> heredado desde tabla</td><td><code>inmutable == false</code> para asignaciones</td></tr>
+      <tr><td>SEM-4</td><td>Tipo incompatible en declaracion</td><td><code>decl_variable</code></td><td><code>decl.tipo</code> sintetizado; <code>expr.tipo</code> sintetizado</td><td>Tipos iguales o <code>entero -> real</code></td></tr>
+      <tr><td>SEM-5</td><td>Tipo incompatible en asignacion</td><td><code>sent_id</code></td><td><code>id.tipo</code> heredado; <code>expr.tipo</code> sintetizado</td><td>Tipos compatibles con el tipo declarado</td></tr>
+      <tr><td>SEM-6</td><td>Condicion no booleana</td><td><code>sent_si</code>, <code>sent_mientras</code></td><td><code>cond.tipo</code> sintetizado</td><td><code>cond.tipo == booleano</code></td></tr>
+      <tr><td>SEM-7</td><td>Limites no numericos en <code>para</code></td><td><code>sent_para</code></td><td><code>desde.tipo</code>, <code>hasta.tipo</code>, <code>paso.tipo</code> sintetizados</td><td>Cada tipo debe pertenecer a <code>{entero, real}</code></td></tr>
+    </tbody>
+  </table>
+
+  <h2>Producciones ampliadas</h2>
+
+  <h3>Declaracion de variable</h3>
+  <p class="prod">&lt;decl_variable&gt; -> (var | sea) &lt;tipo&gt; ID = &lt;expresion&gt;</p>
+  <div class="sem">
+    <strong>SEM-1 - Declaracion duplicada en el mismo ambito</strong>
+    <ul>
+      <li><b>Atributos:</b> <code>ID.nombre</code> sintetizado; <code>ambitoActual</code> heredado desde la pila de ambitos.</li>
+      <li><b>Dominio:</b> <code>ID.nombre</code> no debe existir en <code>tablaSimbolos[ambitoActual]</code>.</li>
+      <li><b>Accion:</b> consultar tabla de simbolos; si ya existe, reportar fila, columna, lexema y ubicacion de la primera declaracion; continuar analisis.</li>
+    </ul>
+  </div>
+  <div class="sem">
+    <strong>SEM-4 - Tipo compatible en inicializacion</strong>
+    <ul>
+      <li><b>Atributos:</b> <code>decl.tipo</code> sintetizado desde <code>&lt;tipo&gt;</code>; <code>expr.tipo</code> sintetizado por inferencia.</li>
+      <li><b>Dominio:</b> <code>decl.tipo == expr.tipo</code> o <code>decl.tipo == real</code> y <code>expr.tipo == entero</code>.</li>
+      <li><b>Accion:</b> inferir tipo de la expresion; comparar contra el tipo declarado; si falla, reportar error y registrar el simbolo para permitir errores posteriores.</li>
+    </ul>
+  </div>
+
+  <h3>Sentencia por identificador</h3>
+  <p class="prod">&lt;sent_id&gt; -> ID = &lt;expresion&gt; | ID ( &lt;argumentos&gt; ) | ID . ID &lt;sufijo_id&gt;</p>
+  <div class="sem">
+    <strong>SEM-2 - Uso de identificador previamente declarado</strong>
+    <ul>
+      <li><b>Atributos:</b> <code>ID.nombre</code> sintetizado; <code>ID.tipo</code> sintetizado desde tabla.</li>
+      <li><b>Dominio:</b> <code>ID.nombre</code> debe existir en algun ambito activo de la tabla de simbolos.</li>
+      <li><b>Accion:</b> buscar desde el ambito mas interno al global; si no existe, reportar fila, columna, lexema y sugerencia de declaracion.</li>
+    </ul>
+  </div>
+  <div class="sem">
+    <strong>SEM-3 - Las constantes declaradas con <code>sea</code> no se reasignan</strong>
+    <ul>
+      <li><b>Atributos:</b> <code>ID.inmutable</code> heredado desde la entrada de tabla; <code>ID.nombre</code> sintetizado.</li>
+      <li><b>Dominio:</b> si la produccion es asignacion, <code>ID.inmutable</code> debe ser <code>false</code>.</li>
+      <li><b>Accion:</b> leer atributo de tabla; si es constante, reportar error y mantener el analisis de la expresion asignada.</li>
+    </ul>
+  </div>
+  <div class="sem">
+    <strong>SEM-5 - Tipo compatible en asignacion</strong>
+    <ul>
+      <li><b>Atributos:</b> <code>ID.tipo</code> heredado desde tabla; <code>expr.tipo</code> sintetizado.</li>
+      <li><b>Dominio:</b> mismo criterio de compatibilidad de SEM-4.</li>
+      <li><b>Accion:</b> inferir tipo de <code>&lt;expresion&gt;</code>; comparar; reportar el tipo esperado y el tipo encontrado.</li>
+    </ul>
+  </div>
+
+  <h3>Condicional y ciclo mientras</h3>
+  <p class="prod">&lt;sent_si&gt; -> si &lt;expresion&gt; entonces &lt;bloque&gt; &lt;rama_sino&gt; fin_si</p>
+  <p class="prod">&lt;sent_mientras&gt; -> mientras &lt;expresion&gt; hacer &lt;bloque&gt; fin_mientras</p>
+  <div class="sem">
+    <strong>SEM-6 - La condicion debe ser booleana</strong>
+    <ul>
+      <li><b>Atributos:</b> <code>cond.tipo</code> sintetizado por inferencia.</li>
+      <li><b>Dominio:</b> <code>cond.tipo in {booleano}</code> cuando el tipo puede determinarse.</li>
+      <li><b>Accion:</b> si la condicion se infiere como <code>entero</code>, <code>real</code> o <code>cadena</code>, reportar error en el token <code>si</code> o <code>mientras</code>.</li>
+    </ul>
+  </div>
+
+  <h3>Ciclo para</h3>
+  <p class="prod">&lt;sent_para&gt; -> para ID desde &lt;expresion&gt; hasta &lt;expresion&gt; &lt;paso_opt&gt; hacer &lt;bloque&gt; fin_para</p>
+  <p class="prod">&lt;paso_opt&gt; -> paso &lt;expresion&gt; | epsilon</p>
+  <div class="sem">
+    <strong>SEM-7 - Limites y paso numericos</strong>
+    <ul>
+      <li><b>Atributos:</b> <code>desde.tipo</code>, <code>hasta.tipo</code> y <code>paso.tipo</code> sintetizados.</li>
+      <li><b>Dominio:</b> cada atributo debe pertenecer a <code>{entero, real}</code>.</li>
+      <li><b>Accion:</b> declarar la variable del ciclo como <code>entero</code> en un ambito local; validar limites y paso; reportar cada violacion sin detener el recorrido.</li>
+    </ul>
+  </div>
+
+  <h2>Tabla de simbolos</h2>
+  <p>
+    La implementacion mantiene una pila de ambitos. Cada entrada conserva:
+    <code>nombre</code>, <code>tipo</code>, <code>inmutable</code>, <code>inicializado</code>,
+    <code>ambito</code>, <code>fila</code> y <code>columna</code>. La busqueda se realiza del ambito
+    mas interno hacia el global.
+  </p>
+
+  <h2>Bonus IA con OpenAI</h2>
+  <p>
+    Se implementa la modalidad A: los errores semanticos deterministas se envian a OpenAI como capa
+    adicional de explicacion. La respuesta agrega explicacion, correccion sugerida, mini ejemplo y confianza.
+    Si <code>OPENAI_API_KEY</code> no esta configurada, el compilador conserva la sugerencia deterministica y
+    responde <code>estado=no_disponible</code>.
+  </p>
+
+  <h2>Ejemplo de validacion</h2>
+  <pre>var entero x = "hola"
+var entero x = 2
+x = "texto"
+sea entero c = 1
+c = 2
+imprimir(fantasma)
+si x entonces
+    imprimir(x)
+fin_si
+para i desde "a" hasta 10 paso falso hacer
+    imprimir(i)
+fin_para</pre>
+  <p class="small">
+    Este ejemplo dispara SEM-1, SEM-2, SEM-3, SEM-4, SEM-5, SEM-6 y SEM-7 en una sola ejecucion,
+    demostrando continuacion del analisis despues de cada error.
+  </p>
+</body>
+</html>

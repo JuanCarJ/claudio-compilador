@@ -377,4 +377,84 @@ mientras hacer
 fin_mientras
 
 imprimir(@)""",
+
+    "Quiz 4. SEM-1 declaracion duplicada": """// SEM-1: el mismo nombre no puede declararse dos veces en el mismo ambito
+var entero x = 1
+var entero x = 2
+
+imprimir(x)""",
+
+    "Quiz 4. SEM-2 identificador no declarado": """// SEM-2: se usa un identificador que nunca fue declarado
+var entero x = 10
+imprimir(fantasma)
+
+x = x + 1""",
+
+    "Quiz 4. SEM-3 constante reasignada": """// SEM-3: una constante declarada con sea no se puede reasignar
+sea entero limite = 5
+limite = 10
+
+imprimir(limite)""",
+
+    "Quiz 4. SEM-4 tipo incompatible en declaracion": """// SEM-4: el valor inicial no coincide con el tipo declarado
+var entero edad = "veinte"
+var booleano activo = 42
+
+imprimir(edad)
+imprimir(activo)""",
+
+    "Quiz 4. SEM-5 tipo incompatible en asignacion": """// SEM-5: una asignacion posterior no respeta el tipo declarado
+var entero numero = 5
+numero = "hola"
+
+var cadena texto = "mundo"
+texto = 99""",
+
+    "Quiz 4. SEM-6 condicion no booleana": """// SEM-6: la condicion de si/mientras debe ser booleana
+var entero x = 10
+
+si x entonces
+    imprimir(x)
+fin_si
+
+mientras "activo" hacer
+    imprimir(x)
+    x = x - 1
+fin_mientras""",
+
+    "Quiz 4. SEM-7 limites no numericos en para": """// SEM-7: desde, hasta y paso deben ser numericos
+para i desde "a" hasta 10 paso falso hacer
+    imprimir(i)
+fin_para""",
+
+    "Quiz 4. Todas las reglas semanticas": """// Caso integral: reproduce SEM-1 a SEM-7 en una sola ejecucion
+var entero x = "hola"
+var entero x = 2
+x = "texto"
+
+sea entero c = 1
+c = 2
+
+imprimir(fantasma)
+
+si x entonces
+    imprimir(x)
+fin_si
+
+para i desde "a" hasta 10 paso falso hacer
+    imprimir(i)
+fin_para""",
+
+    "Quiz 4. Caso semantico valido": """// Programa valido para comparar contra los errores semanticos
+funcion entero suma(entero a, entero b) hacer
+    var entero resultado = a + b
+    retornar resultado
+fin_funcion
+
+var entero total = 10
+total = 20
+
+si total > 0 entonces
+    imprimir(total)
+fin_si""",
 }

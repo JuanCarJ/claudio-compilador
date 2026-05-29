@@ -1,5 +1,5 @@
 """
-Sugerencias IA para diagnosticos sintacticos de Claudio.
+Sugerencias IA para diagnosticos sintacticos y semanticos de Claudio.
 
 La integracion esta aislada del analizador: si OpenAI no esta
 configurado o falla, el compilador sigue reportando los errores
@@ -26,6 +26,10 @@ class SugerenciaIA(BaseModel):
 
 
 class RespuestaSugerenciasIA(BaseModel):
+    sugerencias: list[SugerenciaIA]
+
+
+class RespuestaSugerenciasIASemantica(BaseModel):
     sugerencias: list[SugerenciaIA]
 
 
@@ -128,4 +132,95 @@ def generar_sugerencias_ia(
             compactos,
             "error",
             f"No fue posible generar la sugerencia IA: {exc}",
+        )
+
+
+def generar_sugerencias_ia_semantico(
+    codigo: str,
+    diagnosticos: list[dict[str, Any]],
+) -> tuple[str, list[dict[str, Any]]]:
+    """
+    Bonus IA del Quiz 4, modalidad A.
+
+    Los errores semanticos clasicos ya detectados por SEM-1..SEM-7 se envian
+    a OpenAI para enriquecerlos con una explicacion y una propuesta concreta.
+    La IA no reemplaza las reglas deterministicas.
+    """
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not diagnosticos:
+        return "lista", []
+    if not api_key:
+        return "no_disponible", _sugerencias_estado(
+            diagnosticos,
+            "no_disponible",
+            "Configura OPENAI_API_KEY en el backend para activar sugerencias IA semanticas.",
+        )
+
+    try:
+        from openai import OpenAI
+    except Exception:
+        return "error", _sugerencias_estado(
+            diagnosticos,
+            "error",
+            "La dependencia openai no esta instalada en el backend.",
+        )
+
+    max_errors = int(os.getenv("OPENAI_MAX_ERRORS", "8"))
+    timeout = float(os.getenv("OPENAI_TIMEOUT_SECONDS", "8"))
+    model = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
+    compactos = diagnosticos[:max_errors]
+
+    system_prompt = (
+        "Eres un asistente educativo para estudiantes de compiladores. "
+        "Explica errores semanticos del lenguaje Claudio con base en el diagnostico "
+        "entregado. Los errores posibles son: SEM-1 declaracion duplicada, "
+        "SEM-2 identificador no declarado, SEM-3 reasignacion de constante, "
+        "SEM-4 incompatibilidad de tipo en declaracion, SEM-5 incompatibilidad "
+        "de tipo en asignacion, SEM-6 condicion no booleana y SEM-7 limites "
+        "no numericos en un ciclo para. Devuelve sugerencias breves, concretas, "
+        "en espanol y orientadas a corregir el codigo. No inventes reglas que "
+        "contradigan el diagnostico deterministico."
+    )
+    user_payload = {
+        "lenguaje": "Claudio",
+        "regla": "Cada sugerencia complementa, no reemplaza, la sugerencia deterministica.",
+        "codigo_fuente": codigo[:1200],
+        "errores_semanticos": compactos,
+    }
+
+    try:
+        client = OpenAI(api_key=api_key, timeout=timeout)
+        response = client.responses.parse(
+            model=model,
+            input=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
+            ],
+            text_format=RespuestaSugerenciasIASemantica,
+        )
+        parsed: RespuestaSugerenciasIASemantica = response.output_parsed
+        sugerencias = []
+        for item in parsed.sugerencias:
+            data = item.model_dump()
+            data["estado_ia"] = "lista"
+            sugerencias.append(data)
+
+        presentes = {s["indice"] for s in sugerencias}
+        for diag in compactos:
+            indice = int(diag.get("indice") or 0)
+            if indice not in presentes:
+                sugerencias.append({
+                    "indice": indice,
+                    "explicacion_usuario": "No se genero una sugerencia IA para este error semantico.",
+                    "correccion_sugerida": "",
+                    "mini_ejemplo": "",
+                    "confianza": 0.0,
+                    "estado_ia": "error",
+                })
+        return "lista", sugerencias
+    except Exception as exc:
+        return "error", _sugerencias_estado(
+            compactos,
+            "error",
+            f"No fue posible generar la sugerencia IA semantica: {exc}",
         )

@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Play, Loader2, FileCode, Braces, Table2, LayoutGrid } from "lucide-react";
+import { Play, Loader2, FileCode, Braces, Table2, LayoutGrid, ShieldCheck } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -11,7 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-export type AnalysisMethod = "lexico" | "recursivo" | "ll1";
+export type AnalysisMethod = "lexico" | "recursivo" | "ll1" | "semantico";
 
 interface ToolbarProps {
   method: AnalysisMethod;
@@ -28,6 +28,7 @@ const METHODS: { value: AnalysisMethod; label: string; shortLabel: string; icon:
   { value: "lexico", label: "Lexico", shortLabel: "LEX", icon: FileCode, tooltip: "Divide el codigo en tokens (lexemas) con su tipo, fila y columna. Primera fase de cualquier compilador." },
   { value: "recursivo", label: "Desc. Recursivo", shortLabel: "RD", icon: Braces, tooltip: "Una funcion por cada no-terminal de la gramatica. Construye el arbol de derivacion mediante llamadas recursivas." },
   { value: "ll1", label: "Predictivo LL(1)", shortLabel: "LL1", icon: Table2, tooltip: "Usa una tabla M[A,a] y una pila explicita para analizar la entrada paso a paso. Muestra conjuntos FIRST/FOLLOW." },
+  { value: "semantico", label: "Semantico", shortLabel: "SEM", icon: ShieldCheck, tooltip: "Aplica reglas semanticas sobre el AST: tipos, ambitos, constantes, condiciones y ciclos. Incluye tabla de simbolos." },
 ];
 
 export function Toolbar({

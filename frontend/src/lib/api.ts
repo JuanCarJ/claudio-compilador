@@ -60,6 +60,8 @@ export interface TreeNode {
   lexema: string;
   es_terminal: boolean;
   es_epsilon: boolean;
+  fila?: number;
+  columna?: number;
   hijos: TreeNode[];
 }
 
@@ -122,6 +124,37 @@ export interface ProgramasResponse {
   programas: Record<string, string>;
 }
 
+export interface SemanticDiagnostic {
+  indice: number;
+  fila: number;
+  columna: number;
+  lexema: string;
+  regla: string;
+  mensaje: string;
+  sugerencia: string;
+  sugerencia_ia: AISuggestion | null;
+  estado_ia: "pendiente" | "generando" | "lista" | "no_disponible" | "error" | string;
+}
+
+export interface SemanticSimboloEntry {
+  nombre: string;
+  tipo: string;
+  inmutable: boolean;
+  inicializado: boolean;
+  ambito: number;
+  fila: number;
+  columna: number;
+}
+
+export interface SemanticoResponse {
+  valido: boolean;
+  errores_semanticos: SemanticDiagnostic[];
+  total_errores_semanticos: number;
+  tabla_simbolos: SemanticSimboloEntry[];
+  arbol_parcial: TreeNode | null;
+  lexico: LexicoResponse;
+}
+
 const BASE = "/api";
 
 async function post<T>(endpoint: string, codigo: string): Promise<T> {
@@ -155,12 +188,30 @@ export function analizarLL1(codigo: string) {
   return post<LL1Response>("/ll1", codigo);
 }
 
+export function analizarSemantico(codigo: string) {
+  return post<SemanticoResponse>("/semantico", codigo);
+}
+
 export function traducirSwift(codigo: string) {
   return post<TraducirResponse>("/traducir", codigo);
 }
 
 export function generarSugerenciasIA(codigo: string, diagnosticos: SyntaxDiagnostic[]) {
   return fetch(`${BASE}/sugerencias-ia`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ codigo, diagnosticos }),
+  }).then((r) => {
+    if (!r.ok) throw new Error(`Error ${r.status}`);
+    return r.json() as Promise<AISuggestionsResponse>;
+  });
+}
+
+export function generarSugerenciasIASemantico(
+  codigo: string,
+  diagnosticos: SemanticDiagnostic[],
+) {
+  return fetch(`${BASE}/sugerencias-ia-semantico`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ codigo, diagnosticos }),

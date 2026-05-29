@@ -218,7 +218,9 @@ class ParserDescendenteRecursivo:
         return NodoArbol(
             simbolo=token.tipo.name,
             lexema=token.lexema,
-            es_terminal=True
+            es_terminal=True,
+            fila=token.fila,
+            columna=token.columna,
         )
 
     def _crear_epsilon(self) -> NodoArbol:

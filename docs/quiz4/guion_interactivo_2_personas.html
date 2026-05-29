@@ -1,0 +1,967 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quiz 4 Claudio - Guion interactivo</title>
+  <style>
+    :root {
+      --bg: #080b10;
+      --panel: #101620;
+      --panel-2: #151d2a;
+      --line: #263244;
+      --text: #eef4ff;
+      --muted: #9aa8bd;
+      --blue: #89b4fa;
+      --green: #a6e3a1;
+      --amber: #f9e2af;
+      --red: #f38ba8;
+      --purple: #cba6f7;
+      --cyan: #94e2d5;
+      --shadow: 0 18px 70px rgba(0, 0, 0, .38);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(137, 180, 250, .16), transparent 32rem),
+        linear-gradient(180deg, #0b0f17 0%, #080b10 48%, #07090d 100%);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button, select {
+      font: inherit;
+    }
+
+    .app {
+      min-height: 100dvh;
+      display: grid;
+      grid-template-columns: 292px minmax(0, 1fr) 332px;
+    }
+
+    aside, main, .right {
+      min-height: 100vh;
+    }
+
+    aside {
+      border-right: 1px solid var(--line);
+      background: rgba(8, 11, 16, .76);
+      backdrop-filter: blur(18px);
+      padding: 22px 18px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+    }
+
+    .brand {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 22px;
+    }
+
+    .brand small {
+      color: var(--muted);
+      text-transform: uppercase;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .08em;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .meter {
+      height: 7px;
+      background: #1a2230;
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 16px 0 20px;
+      border: 1px solid #243044;
+    }
+
+    .meter span {
+      display: block;
+      height: 100%;
+      width: 6.25%;
+      background: linear-gradient(90deg, var(--blue), var(--green));
+      transition: width .22s ease;
+    }
+
+    .nav-list {
+      display: grid;
+      gap: 7px;
+    }
+
+    .nav-item {
+      width: 100%;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      text-align: left;
+      padding: 10px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+      transition: background .18s ease, color .18s ease, border-color .18s ease, transform .18s ease;
+    }
+
+    .nav-item:hover {
+      background: rgba(255, 255, 255, .035);
+      color: var(--text);
+    }
+
+    .nav-item.active {
+      background: #121b28;
+      color: var(--text);
+      border-color: #34445e;
+      transform: translateX(2px);
+    }
+
+    .num {
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 800;
+      color: #071019;
+      background: var(--blue);
+    }
+
+    .nav-item:nth-child(2n) .num { background: var(--purple); }
+    .nav-item:nth-child(3n) .num { background: var(--green); }
+    .nav-item:nth-child(4n) .num { background: var(--amber); }
+
+    .nav-title {
+      min-width: 0;
+      font-size: 13px;
+      line-height: 1.25;
+      font-weight: 700;
+    }
+
+    .nav-role {
+      grid-column: 2;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.2;
+      margin-top: -2px;
+    }
+
+    main {
+      min-width: 0;
+      padding: 34px min(4.2vw, 54px);
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 22px;
+    }
+
+    .topbar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .slide-id {
+      color: var(--muted);
+      font-size: 13px;
+      text-transform: uppercase;
+      font-weight: 800;
+      letter-spacing: .06em;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      border: 1px solid #314055;
+      color: var(--text);
+      background: #121a25;
+      border-radius: 8px;
+      padding: 9px 12px;
+      cursor: pointer;
+      transition: transform .16s ease, border-color .16s ease, background .16s ease;
+      min-height: 40px;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: #4a6385;
+      background: #182232;
+    }
+
+    .btn.primary {
+      background: var(--green);
+      color: #061007;
+      border-color: var(--green);
+      font-weight: 800;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 230px;
+      gap: 24px;
+      align-items: end;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .hero h2 {
+      margin: 0;
+      font-size: clamp(34px, 5vw, 68px);
+      line-height: .98;
+      letter-spacing: 0;
+      max-width: 880px;
+    }
+
+    .hero p {
+      margin: 16px 0 0;
+      color: var(--muted);
+      max-width: 760px;
+      font-size: 17px;
+      line-height: 1.55;
+    }
+
+    .timer {
+      background: #0d131d;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .timer .time {
+      font-variant-numeric: tabular-nums;
+      font-size: 38px;
+      font-weight: 850;
+      line-height: 1;
+      color: var(--amber);
+      margin-bottom: 10px;
+    }
+
+    .timer small {
+      color: var(--muted);
+      line-height: 1.35;
+      display: block;
+    }
+
+    .script-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      align-items: start;
+    }
+
+    .speaker {
+      background: rgba(16, 22, 32, .94);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      min-height: 320px;
+    }
+
+    .speaker header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #111927;
+    }
+
+    .speaker h3 {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.2;
+    }
+
+    .tag {
+      color: #071019;
+      background: var(--blue);
+      border-radius: 999px;
+      padding: 5px 8px;
+      font-size: 11px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .speaker.b .tag { background: var(--purple); }
+
+    .body {
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .body p {
+      margin: 0;
+      font-size: clamp(17px, 1.8vw, 24px);
+      line-height: 1.48;
+    }
+
+    .body .small-note {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+      border-left: 3px solid var(--green);
+      padding-left: 10px;
+    }
+
+    .right {
+      border-left: 1px solid var(--line);
+      background: rgba(10, 14, 21, .78);
+      backdrop-filter: blur(18px);
+      padding: 22px 18px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      display: grid;
+      gap: 18px;
+      align-content: start;
+    }
+
+    .panel {
+      background: rgba(16, 22, 32, .94);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .panel h3 {
+      margin: 0 0 10px;
+      font-size: 15px;
+      line-height: 1.2;
+    }
+
+    .panel p, .panel li {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.42;
+    }
+
+    .panel ul, .panel ol {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 7px;
+    }
+
+    .concept-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .concept {
+      border: 1px solid #2a374a;
+      background: #0e1520;
+      border-radius: 8px;
+      padding: 11px;
+    }
+
+    .concept strong {
+      color: var(--text);
+      display: block;
+      margin-bottom: 5px;
+      font-size: 13px;
+    }
+
+    .concept span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.38;
+      display: block;
+    }
+
+    .demo-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .demo-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .demo-link {
+      border: 1px solid #33445d;
+      background: #101722;
+      color: var(--text);
+      border-radius: 8px;
+      padding: 9px 10px;
+      text-decoration: none;
+      display: grid;
+      gap: 3px;
+      min-height: 58px;
+      transition: background .16s ease, border-color .16s ease, transform .16s ease;
+    }
+
+    .demo-link:hover {
+      background: #182232;
+      border-color: #4a6385;
+      transform: translateY(-1px);
+    }
+
+    .demo-link strong {
+      font-size: 12px;
+      line-height: 1.1;
+    }
+
+    .demo-link span {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .check {
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .check input {
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      margin: 0;
+      border: 1px solid #42546e;
+      border-radius: 5px;
+      background: #0d141e;
+      display: grid;
+      place-items: center;
+    }
+
+    .check input:checked {
+      background: var(--green);
+      border-color: var(--green);
+    }
+
+    .check input:checked::after {
+      content: "";
+      width: 10px;
+      height: 6px;
+      border-left: 2px solid #061007;
+      border-bottom: 2px solid #061007;
+      transform: rotate(-45deg);
+      margin-top: -2px;
+    }
+
+    .kbd {
+      display: inline-flex;
+      border: 1px solid #35445b;
+      border-bottom-color: #202b3b;
+      background: #101722;
+      border-radius: 5px;
+      padding: 2px 6px;
+      color: var(--text);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .role-toggle {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .role-toggle button {
+      min-height: 34px;
+      border-radius: 7px;
+      border: 1px solid #33445d;
+      background: #101722;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .role-toggle button.active {
+      color: #071019;
+      background: var(--amber);
+      border-color: var(--amber);
+    }
+
+    .hidden-role {
+      opacity: .22;
+      filter: grayscale(1);
+    }
+
+    @media (max-width: 1120px) {
+      .app { grid-template-columns: 1fr; }
+      aside, .right {
+        position: static;
+        height: auto;
+        min-height: 0;
+        border: 0;
+      }
+      aside { border-bottom: 1px solid var(--line); }
+      .right { border-top: 1px solid var(--line); }
+      .nav-list { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+      .hero { grid-template-columns: 1fr; }
+      .timer { max-width: 260px; }
+      .script-grid { grid-template-columns: 1fr; }
+    }
+
+    @media print {
+      body { background: white; color: black; }
+      .app { display: block; }
+      aside, .right, .topbar, .timer { display: none; }
+      main { padding: 0; }
+      .hero, .speaker { box-shadow: none; border-color: #aaa; }
+      .script-grid { display: block; }
+      .speaker { page-break-inside: avoid; margin-bottom: 16px; color: black; }
+      .body p, .body .small-note, .hero p { color: black; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <div class="brand">
+        <small>Guion interactivo</small>
+        <h1>Quiz 4 Claudio</h1>
+        <div class="meter" aria-label="Progreso"><span id="progress"></span></div>
+      </div>
+      <div id="nav" class="nav-list" aria-label="Navegacion de slides"></div>
+    </aside>
+
+    <main>
+      <div class="topbar">
+        <div class="slide-id" id="slideId">Slide 01</div>
+        <div class="controls">
+          <button class="btn" id="prevBtn">Anterior</button>
+          <button class="btn primary" id="nextBtn">Siguiente</button>
+          <button class="btn" id="resetBtn">Reiniciar</button>
+        </div>
+      </div>
+
+      <section class="hero">
+        <div>
+          <h2 id="title">Claudio Quiz 4</h2>
+          <p id="purpose">Analisis semantico explicado por dos presentadores.</p>
+        </div>
+        <div class="timer">
+          <div class="time" id="clock">00:00</div>
+          <button class="btn" id="timerBtn">Iniciar timer</button>
+          <small>Meta sugerida: 12 a 15 minutos. Usa <span class="kbd">←</span> y <span class="kbd">→</span> para navegar.</small>
+        </div>
+      </section>
+
+      <section class="script-grid">
+        <article class="speaker a" id="speakerA">
+          <header>
+            <h3>Presentador A</h3>
+            <span class="tag" id="roleA">abre</span>
+          </header>
+          <div class="body">
+            <p id="scriptA"></p>
+            <div class="small-note" id="noteA"></div>
+          </div>
+        </article>
+
+        <article class="speaker b" id="speakerB">
+          <header>
+            <h3>Presentador B</h3>
+            <span class="tag" id="roleB">complementa</span>
+          </header>
+          <div class="body">
+            <p id="scriptB"></p>
+            <div class="small-note" id="noteB"></div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <aside class="right">
+      <section class="panel">
+        <h3>Vista de ensayo</h3>
+        <p>Filtra el guion por persona para practicar por separado.</p>
+        <div class="role-toggle">
+          <button data-role="all" class="active">Ambos</button>
+          <button data-role="a">Solo A</button>
+          <button data-role="b">Solo B</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h3>Teoria y conceptos clave</h3>
+        <div class="concept-list" id="concepts"></div>
+      </section>
+
+      <section class="panel">
+        <h3>Demo en vivo</h3>
+        <div class="demo-list">
+          <label class="check"><input type="checkbox" /> Abrir https://claudio.dautia.com/?metodo=semantico</label>
+          <label class="check"><input type="checkbox" /> Seleccionar cada regla SEM por separado</label>
+          <label class="check"><input type="checkbox" /> Ejecutar Analizar y mostrar regla, fila, columna y lexema</label>
+          <label class="check"><input type="checkbox" /> Mostrar tabla de simbolos</label>
+          <label class="check"><input type="checkbox" /> Mostrar sugerencia OpenAI si aparece</label>
+          <label class="check"><input type="checkbox" /> Seleccionar caso valido y mostrar cero errores</label>
+        </div>
+        <div class="demo-actions" aria-label="Casos seleccionables del Quiz 4">
+          <a class="demo-link" href="https://claudio.dautia.com/?metodo=semantico&programa=Quiz+4.+SEM-1+declaracion+duplicada" target="_blank" rel="noreferrer"><strong>SEM-1</strong><span>Duplicado</span></a>
+          <a class="demo-link" href="https://claudio.dautia.com/?metodo=semantico&programa=Quiz+4.+SEM-2+identificador+no+declarado" target="_blank" rel="noreferrer"><strong>SEM-2</strong><span>No declarado</span></a>
+          <a class="demo-link" href="https://claudio.dautia.com/?metodo=semantico&programa=Quiz+4.+SEM-3+constante+reasignada" target="_blank" rel="noreferrer"><strong>SEM-3</strong><span>Constante</span></a>
+          <a class="demo-link" href="https://claudio.dautia.com/?metodo=semantico&programa=Quiz+4.+SEM-4+tipo+incompatible+en+declaracion" target="_blank" rel="noreferrer"><strong>SEM-4</strong><span>Tipo declaracion</span></a>
+          <a class="demo-link" href="https://claudio.dautia.com/?metodo=semantico&programa=Quiz+4.+SEM-5+tipo+incompatible+en+asignacion" target="_blank" rel="noreferrer"><strong>SEM-5</strong><span>Tipo asignacion</span></a>
+          <a class="demo-link" href="https://claudio.dautia.com/?metodo=semantico&programa=Quiz+4.+SEM-6+condicion+no+booleana" target="_blank" rel="noreferrer"><strong>SEM-6</strong><span>Condicion</span></a>
+          <a class="demo-link" href="https://claudio.dautia.com/?metodo=semantico&programa=Quiz+4.+SEM-7+limites+no+numericos+en+para" target="_blank" rel="noreferrer"><strong>SEM-7</strong><span>Para</span></a>
+          <a class="demo-link" href="https://claudio.dautia.com/?metodo=semantico&programa=Quiz+4.+Caso+semantico+valido" target="_blank" rel="noreferrer"><strong>Valido</strong><span>Cero errores</span></a>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h3>Frases de cierre</h3>
+        <ul>
+          <li>La sintaxis valida forma; la semantica valida significado.</li>
+          <li>OpenAI explica diagnosticos reales, no reemplaza las reglas.</li>
+          <li>Claudio ahora acumula errores utiles y muestra la tabla de simbolos.</li>
+        </ul>
+      </section>
+    </aside>
+  </div>
+
+  <script>
+    const slides = [
+      {
+        title: "Claudio Quiz 4",
+        purpose: "Teoria de compiladores, reglas formales, implementacion real, OpenAI y demo.",
+        roleA: "abre",
+        roleB: "ubica",
+        a: "Buenas. En esta presentacion mostramos la entrega del Quiz 4 para Claudio. Claudio es nuestro compilador fuente-a-fuente desde un lenguaje en espanol hacia Swift.",
+        b: "La mejora principal es que ahora no solo analizamos forma. Agregamos analisis semantico, tabla de simbolos, reglas de error SEM-1 a SEM-7, interfaz visual y apoyo con OpenAI.",
+        noteA: "No alargarse en historia del proyecto.",
+        noteB: "Rematar con que la IA no reemplaza las reglas."
+      },
+      {
+        title: "Ruta del Quiz 4",
+        purpose: "Contexto, conceptos, reglas e implementacion.",
+        roleA: "organiza",
+        roleB: "conecta",
+        a: "La exposicion tiene cuatro bloques: contexto de Claudio, conceptos teoricos, reglas semanticas y la implementacion con pruebas.",
+        b: "La idea es que primero se entienda que es analisis semantico y despues se vea como eso quedo aterrizado en codigo y en la interfaz.",
+        noteA: "Presentar el orden, no leer todos los bullets.",
+        noteB: "Preparar transicion a pipeline."
+      },
+      {
+        title: "Que es Claudio y que agrega el Quiz 4",
+        purpose: "Ubicar la nueva fase dentro del pipeline.",
+        roleA: "pipeline",
+        roleB: "aporte",
+        a: "Claudio ya tenia lexer y parser. El lexer convierte texto en tokens y el parser valida la estructura para construir el AST.",
+        b: "El Quiz 4 agrega la fase semantica. Esa fase toma el AST y valida si el programa tiene sentido antes de traducirlo a Swift.",
+        noteA: "Senalar Lexico -> Sintactico -> Semantico -> Swift.",
+        noteB: "Decir que no se reemplazo el parser."
+      },
+      {
+        title: "Sintaxis valida forma; semantica valida significado",
+        purpose: "Diferencia central del quiz.",
+        roleA: "define",
+        roleB: "ejemplifica",
+        a: "La sintaxis valida forma: que los tokens esten en el orden correcto y que una sentencia cumpla la gramatica.",
+        b: "La semantica valida significado. Por ejemplo, x igual a texto puede tener forma de asignacion, pero falla si x fue declarada como entero.",
+        noteA: "Usar lenguaje simple.",
+        noteB: "Este ejemplo prepara SEM-5."
+      },
+      {
+        title: "Atributos semanticos",
+        purpose: "Explicar atributos, dominios y acciones.",
+        roleA: "teoria",
+        roleB: "aplicacion",
+        a: "Una regla semantica usa atributos. Un atributo sintetizado se calcula desde un nodo o desde sus hijos, como el tipo de una expresion.",
+        b: "Un atributo heredado viene del contexto, como el ambito actual. Cada regla tambien tiene un dominio valido y una accion de validacion.",
+        noteA: "Mencionar expr.tipo.",
+        noteB: "Mencionar reportar SEM-4 como accion."
+      },
+      {
+        title: "Tabla de simbolos y ambitos",
+        purpose: "Mostrar la memoria del compilador.",
+        roleA: "define",
+        roleB: "usa",
+        a: "La tabla de simbolos guarda los nombres declarados y sus atributos: tipo, inmutabilidad, inicializacion, ambito, fila y columna.",
+        b: "Gracias a esa tabla podemos detectar duplicados, identificadores no declarados, constantes reasignadas y tipos incompatibles.",
+        noteA: "No entrar en detalles de estructura interna aun.",
+        noteB: "Conectar con SEM-1, SEM-2 y SEM-3."
+      },
+      {
+        title: "Tipos, compatibilidad y dominios",
+        purpose: "Explicar inferencia y restricciones.",
+        roleA: "tipos",
+        roleB: "dominios",
+        a: "Claudio trabaja con tipos como entero, real, cadena y booleano. El analizador infiere el tipo de las expresiones.",
+        b: "Luego compara ese tipo con el dominio esperado. Por ejemplo, una condicion debe ser booleana y los limites de para deben ser numericos.",
+        noteA: "Mencionar entero -> real como widening.",
+        noteB: "Preparar SEM-6 y SEM-7."
+      },
+      {
+        title: "Recuperacion semantica",
+        purpose: "Acumular varios errores utiles.",
+        roleA: "problema",
+        roleB: "solucion",
+        a: "Un compilador poco util se detiene en el primer error. Nosotros implementamos recuperacion semantica.",
+        b: "Eso significa que Claudio reporta el error, conserva contexto suficiente y sigue recorriendo el AST para entregar una lista mas completa.",
+        noteA: "No prometer correccion automatica.",
+        noteB: "Decir que esto mejora depuracion."
+      },
+      {
+        title: "Mapa completo de reglas semanticas",
+        purpose: "Presentar SEM-1 a SEM-7.",
+        roleA: "primer bloque",
+        roleB: "segundo bloque",
+        a: "Las primeras reglas cubren nombres y declaraciones: SEM-1 duplicado, SEM-2 no declarado, SEM-3 constante reasignada y SEM-4 tipo en declaracion.",
+        b: "Las siguientes cubren asignaciones y control de flujo: SEM-5 tipo en asignacion, SEM-6 condicion no booleana y SEM-7 limites no numericos en para.",
+        noteA: "No explicar cada una completa aun.",
+        noteB: "La siguiente slide entra en detalle."
+      },
+      {
+        title: "SEM-1 a SEM-4",
+        purpose: "Nombres, constantes y declaracion.",
+        roleA: "SEM-1/2",
+        roleB: "SEM-3/4",
+        a: "SEM-1 consulta si el nombre ya existe en el ambito actual. SEM-2 busca si el identificador existe en algun ambito activo.",
+        b: "SEM-3 verifica que una constante declarada con sea no se reasigne. SEM-4 compara el tipo declarado contra el tipo inferido del valor inicial.",
+        noteA: "Usar x duplicado y fantasma.",
+        noteB: "Usar sea c y var entero x = \"hola\"."
+      },
+      {
+        title: "SEM-5 a SEM-7",
+        purpose: "Asignaciones, condiciones y ciclos.",
+        roleA: "SEM-5/6",
+        roleB: "SEM-7",
+        a: "SEM-5 valida asignaciones posteriores. SEM-6 exige que si y mientras reciban condiciones booleanas.",
+        b: "SEM-7 valida que desde, hasta y paso en un ciclo para sean numericos. Si alguno es cadena o booleano, se reporta error.",
+        noteA: "Mencionar ID.tipo vs expr.tipo.",
+        noteB: "Mencionar dominio {entero, real}."
+      },
+      {
+        title: "Implementacion backend",
+        purpose: "Fase independiente sobre el AST.",
+        roleA: "arquitectura",
+        roleB: "componentes",
+        a: "En backend, el parser produce el AST y luego AnalizadorSemantico realiza una pasada independiente sobre ese arbol.",
+        b: "Tambien se implemento TablaSimbolos para manejar ambitos y SemanticDiagnostic para estructurar errores con regla, fila, columna, lexema y sugerencia.",
+        noteA: "Nombrar backend/semantico.py.",
+        noteB: "Conectar con el requisito del enunciado."
+      },
+      {
+        title: "Arquitectura de ejecucion",
+        purpose: "Determinismo primero, IA despues.",
+        roleA: "flujo",
+        roleB: "IA",
+        a: "El flujo es determinista: lexer, parser, analizador semantico, tabla de simbolos y respuesta a la interfaz.",
+        b: "OpenAI entra despues. No detecta las reglas principales; recibe diagnosticos reales y los convierte en explicaciones mas faciles de entender.",
+        noteA: "Evitar decir que la IA compila.",
+        noteB: "Esto responde el bonus."
+      },
+      {
+        title: "UI semantica",
+        purpose: "Tabla, errores y OpenAI visibles.",
+        roleA: "interfaz",
+        roleB: "experiencia",
+        a: "En frontend se agrego el modo semantico, que llama el endpoint y muestra errores con su regla correspondiente.",
+        b: "Tambien se muestra la tabla de simbolos y, cuando esta disponible, una explicacion generada por OpenAI para el diagnostico.",
+        noteA: "Apuntar a la captura de UI.",
+        noteB: "Decir que si no hay key, el compilador sigue funcionando."
+      },
+      {
+        title: "Pruebas y demo",
+        purpose: "Validacion observable.",
+        roleA: "casos",
+        roleB: "demo",
+        a: "La validacion se puede mostrar regla por regla: SEM-1, SEM-2, SEM-3, SEM-4, SEM-5, SEM-6 y SEM-7 tienen casos separados.",
+        b: "En la demo seleccionamos un caso, ejecutamos Analizar, revisamos diagnostico y tabla, y cerramos con el caso valido para mostrar cero errores.",
+        noteA: "Usar los botones SEM de la derecha.",
+        noteB: "No pegar codigo manualmente salvo que falle la red."
+      },
+      {
+        title: "Resultado",
+        purpose: "Cierre conceptual.",
+        roleA: "cierre tecnico",
+        roleB: "cierre final",
+        a: "El resultado es un analizador semantico integrado a Claudio, separado del parser y capaz de validar reglas reales sobre el AST.",
+        b: "En conclusion, Claudio ya no solo reconoce programas bien formados; ahora valida si tienen sentido y explica errores de forma util para el usuario.",
+        noteA: "No abrir temas nuevos.",
+        noteB: "Cerrar con seguridad y pasar a preguntas."
+      }
+    ];
+
+    const concepts = [
+      ["Analisis semantico", "Fase posterior al parser que valida significado sobre el AST."],
+      ["Atributo sintetizado", "Valor calculado desde un nodo o sus hijos, por ejemplo expr.tipo."],
+      ["Atributo heredado", "Valor que llega desde el contexto, por ejemplo ambitoActual."],
+      ["Dominio", "Restriccion valida de un atributo, como cond.tipo == booleano."],
+      ["Tabla de simbolos", "Estructura que guarda nombre, tipo, inmutabilidad, ambito, fila y columna."],
+      ["Ambito", "Region donde un identificador es visible. La busqueda va del ambito interno al global."],
+      ["Compatibilidad de tipos", "Regla que compara tipo esperado contra tipo inferido. Se acepta entero hacia real."],
+      ["Recuperacion", "El analizador no se detiene en el primer error; acumula diagnosticos."],
+      ["OpenAI", "Capa explicativa sobre errores ya detectados por las reglas clasicas."]
+    ];
+
+    const state = {
+      index: 0,
+      role: "all",
+      seconds: 0,
+      timer: null
+    };
+
+    const nav = document.querySelector("#nav");
+    const progress = document.querySelector("#progress");
+    const slideId = document.querySelector("#slideId");
+    const title = document.querySelector("#title");
+    const purpose = document.querySelector("#purpose");
+    const scriptA = document.querySelector("#scriptA");
+    const scriptB = document.querySelector("#scriptB");
+    const noteA = document.querySelector("#noteA");
+    const noteB = document.querySelector("#noteB");
+    const roleA = document.querySelector("#roleA");
+    const roleB = document.querySelector("#roleB");
+    const speakerA = document.querySelector("#speakerA");
+    const speakerB = document.querySelector("#speakerB");
+    const clock = document.querySelector("#clock");
+    const timerBtn = document.querySelector("#timerBtn");
+
+    function pad(n) { return String(n).padStart(2, "0"); }
+
+    function updateClock() {
+      const m = Math.floor(state.seconds / 60);
+      const s = state.seconds % 60;
+      clock.textContent = `${pad(m)}:${pad(s)}`;
+    }
+
+    function renderNav() {
+      nav.innerHTML = "";
+      slides.forEach((slide, i) => {
+        const btn = document.createElement("button");
+        btn.className = `nav-item${i === state.index ? " active" : ""}`;
+        btn.innerHTML = `
+          <span class="num">${String(i + 1).padStart(2, "0")}</span>
+          <span class="nav-title">${slide.title}</span>
+          <span class="nav-role">A: ${slide.roleA} · B: ${slide.roleB}</span>
+        `;
+        btn.addEventListener("click", () => {
+          state.index = i;
+          render();
+        });
+        nav.appendChild(btn);
+      });
+    }
+
+    function renderConcepts() {
+      const holder = document.querySelector("#concepts");
+      holder.innerHTML = "";
+      concepts.forEach(([name, body]) => {
+        const item = document.createElement("div");
+        item.className = "concept";
+        item.innerHTML = `<strong>${name}</strong><span>${body}</span>`;
+        holder.appendChild(item);
+      });
+    }
+
+    function applyRoleFilter() {
+      speakerA.classList.toggle("hidden-role", state.role === "b");
+      speakerB.classList.toggle("hidden-role", state.role === "a");
+      document.querySelectorAll(".role-toggle button").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.role === state.role);
+      });
+    }
+
+    function render() {
+      const slide = slides[state.index];
+      slideId.textContent = `Slide ${String(state.index + 1).padStart(2, "0")} / ${slides.length}`;
+      title.textContent = slide.title;
+      purpose.textContent = slide.purpose;
+      scriptA.textContent = slide.a;
+      scriptB.textContent = slide.b;
+      noteA.textContent = slide.noteA;
+      noteB.textContent = slide.noteB;
+      roleA.textContent = slide.roleA;
+      roleB.textContent = slide.roleB;
+      progress.style.width = `${((state.index + 1) / slides.length) * 100}%`;
+      renderNav();
+      applyRoleFilter();
+    }
+
+    function move(delta) {
+      state.index = Math.max(0, Math.min(slides.length - 1, state.index + delta));
+      render();
+    }
+
+    document.querySelector("#prevBtn").addEventListener("click", () => move(-1));
+    document.querySelector("#nextBtn").addEventListener("click", () => move(1));
+    document.querySelector("#resetBtn").addEventListener("click", () => {
+      state.index = 0;
+      state.seconds = 0;
+      if (state.timer) {
+        clearInterval(state.timer);
+        state.timer = null;
+        timerBtn.textContent = "Iniciar timer";
+      }
+      updateClock();
+      render();
+    });
+
+    timerBtn.addEventListener("click", () => {
+      if (state.timer) {
+        clearInterval(state.timer);
+        state.timer = null;
+        timerBtn.textContent = "Iniciar timer";
+      } else {
+        state.timer = setInterval(() => {
+          state.seconds += 1;
+          updateClock();
+        }, 1000);
+        timerBtn.textContent = "Pausar timer";
+      }
+    });
+
+    document.querySelectorAll(".role-toggle button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        state.role = btn.dataset.role;
+        applyRoleFilter();
+      });
+    });
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowRight") move(1);
+      if (event.key === "ArrowLeft") move(-1);
+      if (event.key.toLowerCase() === "r") document.querySelector("#resetBtn").click();
+      if (event.key === " ") {
+        event.preventDefault();
+        timerBtn.click();
+      }
+    });
+
+    renderConcepts();
+    updateClock();
+    render();
+  </script>
+</body>
+</html>

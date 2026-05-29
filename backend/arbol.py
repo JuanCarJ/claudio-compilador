@@ -16,6 +16,8 @@ class NodoArbol:
     hijos: List['NodoArbol'] = field(default_factory=list)
     es_terminal: bool = False
     es_epsilon: bool = False
+    fila: int = 0
+    columna: int = 0
     x: float = 0.0
     y: float = 0.0
 
@@ -24,7 +26,7 @@ class NodoArbol:
         return hijo
 
     def hoja(simbolo: str, lexema: str = "", fila: int = 0, col: int = 0) -> 'NodoArbol':
-        return NodoArbol(simbolo=simbolo, lexema=lexema, es_terminal=True)
+        return NodoArbol(simbolo=simbolo, lexema=lexema, es_terminal=True, fila=fila, columna=col)
 
     def epsilon() -> 'NodoArbol':
         return NodoArbol(simbolo="ε", lexema="ε", es_terminal=True, es_epsilon=True)
@@ -36,6 +38,8 @@ class NodoArbol:
             "lexema": self.lexema,
             "es_terminal": self.es_terminal,
             "es_epsilon": self.es_epsilon,
+            "fila": self.fila,
+            "columna": self.columna,
         }
         if self.hijos:
             d["hijos"] = [h.to_dict() for h in self.hijos]

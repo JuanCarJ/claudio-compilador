@@ -20,12 +20,13 @@ from parser_ll1 import ParserPredictivoLL1
 from arbol import contar_nodos, profundidad_arbol
 from traductor import traducir_claudio_a_swift, obtener_mapeo_linea_a_linea
 from programas import PROGRAMAS
-from ai_suggestions import generar_sugerencias_ia
+from ai_suggestions import generar_sugerencias_ia, generar_sugerencias_ia_semantico
+from semantico import AnalizadorSemantico
 
 app = FastAPI(
     title="Claudio Compiler API",
     description="API para el compilador fuente-a-fuente Claudio (Espanol) -> Swift",
-    version="2.0.0",
+    version="3.0.0",
 )
 
 app.add_middleware(
@@ -155,6 +156,42 @@ class SugerenciasIAResponse(BaseModel):
     sugerencias: list[SugerenciaIAResponse]
 
 
+class ErrorSemanticoResponse(BaseModel):
+    indice: int
+    fila: int
+    columna: int
+    lexema: str
+    regla: str
+    mensaje: str
+    sugerencia: str
+    sugerencia_ia: Optional[SugerenciaIAResponse] = None
+    estado_ia: str = "pendiente"
+
+
+class EntradaSimboloResponse(BaseModel):
+    nombre: str
+    tipo: str
+    inmutable: bool
+    inicializado: bool
+    ambito: int
+    fila: int
+    columna: int
+
+
+class AnalisisSemanticoResponse(BaseModel):
+    valido: bool
+    errores_semanticos: list[ErrorSemanticoResponse]
+    total_errores_semanticos: int
+    tabla_simbolos: list[EntradaSimboloResponse]
+    arbol_parcial: Optional[dict] = None
+    lexico: AnalisisLexicoResponse
+
+
+class SugerenciasIASemanticoRequest(BaseModel):
+    codigo: str
+    diagnosticos: list[dict]
+
+
 # ─────────────────────────────────────────────
 # § 2  HELPERS
 # ─────────────────────────────────────────────
@@ -277,13 +314,16 @@ def _errores_lexicos_legacy(errores_lex) -> list[str]:
 def root():
     return {
         "nombre": "Claudio Compiler API",
-        "version": "2.0.0",
+        "version": "3.0.0",
         "descripcion": "Compilador fuente-a-fuente Claudio (Espanol) -> Swift",
         "endpoints": [
             "POST /api/lexico",
             "POST /api/recursivo",
             "POST /api/ll1",
+            "POST /api/semantico",
             "POST /api/traducir",
+            "POST /api/sugerencias-ia",
+            "POST /api/sugerencias-ia-semantico",
             "GET  /api/programas",
         ]
     }
@@ -395,6 +435,41 @@ def sugerencias_ia(req: SugerenciasIARequest):
     estado, sugerencias_raw = generar_sugerencias_ia(req.codigo, req.diagnosticos)
     sugerencias = [SugerenciaIAResponse(**s) for s in sugerencias_raw]
     return SugerenciasIAResponse(estado=estado, sugerencias=sugerencias)
+
+
+@app.post("/api/sugerencias-ia-semantico", response_model=SugerenciasIAResponse)
+def sugerencias_ia_semantico(req: SugerenciasIASemanticoRequest):
+    """Enriquece errores semanticos clasicos con sugerencias OpenAI."""
+    estado, sugerencias_raw = generar_sugerencias_ia_semantico(req.codigo, req.diagnosticos)
+    sugerencias = [SugerenciaIAResponse(**s) for s in sugerencias_raw]
+    return SugerenciasIAResponse(estado=estado, sugerencias=sugerencias)
+
+
+@app.post("/api/semantico", response_model=AnalisisSemanticoResponse)
+def analizar_semantico(req: CodigoRequest):
+    """Ejecuta lexico + parser RD + pasada semantica independiente."""
+    tokens, errores_lex, lexico = _analizar_lexico(req.codigo)
+
+    parser = ParserDescendenteRecursivo(tokens)
+    arbol, aceptado = parser.analizar_con_recuperacion()
+
+    analizador = AnalizadorSemantico()
+    errores_sem, tabla = analizador.analizar(arbol)
+    sintacticos = parser.obtener_errores_sintacticos()
+
+    valido = aceptado and not errores_lex and not sintacticos and not errores_sem
+
+    errores_resp = [ErrorSemanticoResponse(**e.to_dict()) for e in errores_sem]
+    tabla_resp = [EntradaSimboloResponse(**s) for s in tabla.como_lista()]
+
+    return AnalisisSemanticoResponse(
+        valido=valido,
+        errores_semanticos=errores_resp,
+        total_errores_semanticos=len(errores_resp),
+        tabla_simbolos=tabla_resp,
+        arbol_parcial=arbol.to_dict(),
+        lexico=lexico,
+    )
 
 
 @app.post("/api/traducir", response_model=TraduccionResponse)

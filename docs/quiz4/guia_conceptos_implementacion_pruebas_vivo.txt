@@ -1,0 +1,324 @@
+# Guia de conceptos, implementacion y pruebas en vivo - Quiz 4 Claudio
+
+Objetivo:
+Explicar el Quiz 4 como una mejora real del compilador Claudio: primero los conceptos necesarios para entender analisis semantico, despues que se implemento, y finalmente que pruebas se mostraran en vivo.
+
+## 1. Conceptos previos que se deben dominar
+
+### Compilador y pipeline
+
+Claudio es un compilador fuente-a-fuente. Recibe codigo en espanol y lo traduce hacia Swift.
+
+El flujo queda asi:
+
+1. Analisis lexico: convierte texto en tokens.
+2. Analisis sintactico: valida la forma del programa y construye el AST.
+3. Analisis semantico: valida el significado del programa.
+4. Traduccion: genera codigo Swift cuando el programa es valido.
+
+Idea clave:
+El Quiz 4 empieza despues del parser. El AST ya existe; ahora el compilador debe recorrerlo y comprobar si el programa tiene sentido.
+
+### Sintaxis vs semantica
+
+Sintaxis valida forma:
+
+- que una declaracion tenga estructura correcta
+- que una asignacion use la forma `ID = expresion`
+- que un `si` tenga condicion, cuerpo y cierre
+
+Semantica valida significado:
+
+- que un identificador haya sido declarado
+- que no se redeclare en el mismo ambito
+- que una constante no se reasigne
+- que los tipos sean compatibles
+- que las condiciones sean booleanas
+- que los limites de un `para` sean numericos
+
+Ejemplo:
+
+```claudio
+var entero x = 10
+x = "hola"
+```
+
+La asignacion puede tener forma valida, pero semanticamente falla porque `x` es entero y `"hola"` es cadena.
+
+### Atributos semanticos
+
+Un atributo semantico es informacion que se calcula o se propaga durante el recorrido del AST.
+
+Atributos sintetizados:
+
+- salen del nodo o de sus hijos
+- ejemplo: `expresion.tipo`
+
+Atributos heredados:
+
+- vienen del contexto
+- ejemplo: `ambitoActual`
+
+Dominio:
+
+- restriccion que debe cumplirse
+- ejemplo: `condicion.tipo == booleano`
+
+Accion:
+
+- lo que hace el compilador cuando el dominio falla
+- ejemplo: reportar `SEM-6`
+
+### Tabla de simbolos
+
+La tabla de simbolos es la memoria del programa. Guarda informacion de cada nombre declarado:
+
+- nombre
+- tipo
+- si es inmutable
+- si fue inicializado
+- ambito
+- fila
+- columna
+
+Sirve para responder preguntas como:
+
+- ¿este nombre ya existe en este ambito?
+- ¿este identificador fue declarado?
+- ¿esta variable es constante?
+- ¿que tipo tiene esta expresion o identificador?
+
+### Tipos y compatibilidad
+
+Claudio trabaja con tipos como:
+
+- entero
+- real
+- cadena
+- booleano
+
+Regla base:
+El tipo esperado debe ser compatible con el tipo inferido.
+
+Excepcion aceptada:
+`entero` puede asignarse a `real`, porque es una conversion segura de ampliacion.
+
+Ejemplos de errores:
+
+```claudio
+var entero x = "hola"
+var cadena nombre = verdadero
+si x entonces
+    imprimir(x)
+fin_si
+```
+
+### Recuperacion semantica
+
+El analizador semantico no debe detenerse en el primer error.
+
+Debe:
+
+1. reportar el diagnostico
+2. conservar contexto suficiente
+3. seguir recorriendo el AST
+4. entregar una lista completa de errores
+
+Eso mejora la utilidad del compilador, porque el usuario ve varios problemas de una vez.
+
+## 2. Reglas semanticas implementadas
+
+### SEM-1: declaracion duplicada
+
+Detecta cuando un nombre se declara dos veces en el mismo ambito.
+
+```claudio
+var entero x = 1
+var entero x = 2
+```
+
+### SEM-2: identificador no declarado
+
+Detecta uso de un identificador que no existe en ningun ambito activo.
+
+```claudio
+imprimir(fantasma)
+```
+
+### SEM-3: constante reasignada
+
+Detecta reasignacion de variables declaradas con `sea`.
+
+```claudio
+sea entero c = 1
+c = 2
+```
+
+### SEM-4: tipo incompatible en declaracion
+
+Detecta inicializacion con tipo incompatible.
+
+```claudio
+var entero x = "hola"
+```
+
+### SEM-5: tipo incompatible en asignacion
+
+Detecta asignaciones posteriores con tipo incompatible.
+
+```claudio
+var entero x = 1
+x = "texto"
+```
+
+### SEM-6: condicion no booleana
+
+Detecta condiciones de `si` o `mientras` cuyo tipo no es booleano.
+
+```claudio
+var entero x = 10
+si x entonces
+    imprimir(x)
+fin_si
+```
+
+### SEM-7: limites no numericos en `para`
+
+Detecta `desde`, `hasta` o `paso` no numericos.
+
+```claudio
+para i desde "a" hasta 10 paso falso hacer
+    imprimir(i)
+fin_para
+```
+
+## 3. Que se implemento en Claudio
+
+### Backend
+
+Se agrego una fase semantica independiente.
+
+Componentes principales:
+
+- `AnalizadorSemantico`: recorre el AST y aplica reglas SEM-1 a SEM-7.
+- `TablaSimbolos`: maneja ambitos, declaraciones, busquedas e historial.
+- `SemanticDiagnostic`: estructura cada error con regla, mensaje, lexema, fila y columna.
+- `/api/semantico`: expone errores semanticos y tabla de simbolos.
+- `/api/sugerencias-ia-semantico`: usa OpenAI para explicar diagnosticos reales.
+
+Punto importante para decir:
+OpenAI no detecta los errores. Claudio los detecta de forma deterministica; OpenAI solo ayuda a explicarlos.
+
+### Frontend
+
+Se agrego soporte visual para el modo semantico:
+
+- selector de analisis semantico
+- vista de errores con badges `SEM-N`
+- tabla de simbolos visible
+- filtros para distinguir errores sintacticos y semanticos
+- boton de sugerencias IA cuando aplica
+
+### Despliegue
+
+El modo semantico quedo disponible en produccion:
+
+```text
+https://claudio.dautia.com/?metodo=semantico
+```
+
+## 4. Pruebas que mostraremos en vivo
+
+### Prueba 1: caso integral con SEM-1 a SEM-7
+
+Pegar en la app:
+
+```claudio
+var entero x = "hola"
+var entero x = 2
+x = "texto"
+sea entero c = 1
+c = 2
+imprimir(fantasma)
+si x entonces
+    imprimir(x)
+fin_si
+para i desde "a" hasta 10 paso falso hacer
+    imprimir(i)
+fin_para
+```
+
+Mostrar:
+
+- aparece SEM-1 por `x` duplicado
+- aparece SEM-2 por `fantasma`
+- aparece SEM-3 por reasignar `c`
+- aparece SEM-4 por declarar entero con cadena
+- aparece SEM-5 por asignar cadena a entero
+- aparece SEM-6 por usar entero como condicion
+- aparece SEM-7 por limites/paso no numericos
+
+Tambien mostrar:
+
+- tabla de simbolos
+- fila y columna de diagnosticos
+- que el compilador acumula varios errores sin detenerse
+
+### Prueba 2: caso valido
+
+Pegar:
+
+```claudio
+funcion entero suma(entero a, entero b) hacer
+    var entero resultado = a + b
+    retornar resultado
+fin_funcion
+
+var entero total = 10
+total = 20
+si total > 0 entonces
+    imprimir(total)
+fin_si
+```
+
+Mostrar:
+
+- no hay errores semanticos
+- la tabla contiene `suma`, `a`, `b`, `resultado` y `total`
+- el compilador diferencia un programa correcto de uno incorrecto
+
+### Prueba 3: endpoint semantico
+
+Usar este comando si se quiere demostrar API:
+
+```bash
+curl -s https://claudio.dautia.com/api/semantico \
+  -H 'content-type: application/json' \
+  -d '{"codigo":"var entero x = \"hola\""}'
+```
+
+Resultado esperado:
+
+- `valido: false`
+- error `SEM-4`
+- tabla de simbolos con `x`
+
+### Prueba 4: OpenAI
+
+En la UI o por endpoint, pedir sugerencia para un diagnostico real.
+
+Mensaje para decir:
+La IA recibe errores ya detectados por Claudio y los convierte en explicaciones pedagogicas. Si no hay clave de OpenAI, el compilador sigue funcionando con fallback deterministico.
+
+## 5. Orden recomendado de exposicion
+
+1. Presentar que Claudio ahora tiene fase semantica.
+2. Explicar sintaxis vs semantica.
+3. Explicar atributos, tabla de simbolos y tipos.
+4. Pasar por las reglas SEM-1 a SEM-7.
+5. Explicar backend, frontend y OpenAI.
+6. Hacer la demo con el caso integral.
+7. Hacer la demo con el caso valido.
+8. Cerrar con la idea central:
+
+Claudio no solo reconoce programas bien formados; ahora valida si tienen sentido.

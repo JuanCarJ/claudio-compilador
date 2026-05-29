@@ -9,13 +9,17 @@ import {
   fetchProgramas,
   analizarRecursivo,
   analizarLL1,
+  analizarSemantico,
   traducirSwift,
   generarSugerenciasIA,
+  generarSugerenciasIASemantico,
   type LexicoResponse,
   type RecursivoResponse,
   type LL1Response,
+  type SemanticoResponse,
   type TraducirResponse,
   type SyntaxDiagnostic,
+  type SemanticDiagnostic,
   type AISuggestion,
 } from "@/lib/api";
 import { GrammarPanel } from "@/components/grammar-panel";
@@ -41,12 +45,14 @@ const METHOD_TAB: Record<AnalysisMethod, ResultTab> = {
   lexico: "tokens",
   recursivo: "arbol",
   ll1: "traza",
+  semantico: "simbolos",
 };
 
 const METHOD_DESCRIPTIONS: Record<AnalysisMethod, string> = {
   lexico: "Tokeniza el codigo fuente y valida errores para mostrar diagnosticos completos",
   recursivo: "Una funcion por cada no-terminal — construye el arbol de derivacion",
   ll1: "Tabla M[A,a] + pila explicita — traza paso a paso del analisis",
+  semantico: "Reglas semanticas sobre el AST — tipos, ambitos, constantes y tabla de simbolos",
 };
 
 function attachAISuggestions(
@@ -66,6 +72,26 @@ function attachAISuggestions(
 }
 
 function syntaxLines(diagnostics: SyntaxDiagnostic[] = []) {
+  return diagnostics.map((d) => d.fila).filter((line) => Number.isFinite(line) && line > 0);
+}
+
+function attachAISemanticSuggestions(
+  diagnostics: SemanticDiagnostic[] = [],
+  suggestions: AISuggestion[] = []
+) {
+  const byIndex = new Map(suggestions.map((item) => [item.indice, item]));
+  return diagnostics.map((diag) => {
+    const suggestion = byIndex.get(diag.indice);
+    if (!suggestion) return diag;
+    return {
+      ...diag,
+      sugerencia_ia: suggestion,
+      estado_ia: suggestion.estado_ia,
+    };
+  });
+}
+
+function semanticLines(diagnostics: SemanticDiagnostic[] = []) {
   return diagnostics.map((d) => d.fila).filter((line) => Number.isFinite(line) && line > 0);
 }
 
@@ -90,7 +116,7 @@ function HomeContent() {
   /* Core state */
   const [code, setCode] = useState(DEFAULT_CODE);
   const [method, setMethod] = useState<AnalysisMethod>(
-    urlMethod && ["lexico", "recursivo", "ll1"].includes(urlMethod) ? urlMethod : "lexico"
+    urlMethod && ["lexico", "recursivo", "ll1", "semantico"].includes(urlMethod) ? urlMethod : "lexico"
   );
   const [activeTab, setActiveTab] = useState<ResultTab>(METHOD_TAB[method] ?? "tokens");
   const [isLoading, setIsLoading] = useState(false);
@@ -103,6 +129,7 @@ function HomeContent() {
   const [lexico, setLexico] = useState<LexicoResponse | null>(null);
   const [recursivo, setRecursivo] = useState<RecursivoResponse | null>(null);
   const [ll1, setLL1] = useState<LL1Response | null>(null);
+  const [semantico, setSemantico] = useState<SemanticoResponse | null>(null);
   const [traduccion, setTraduccion] = useState<TraducirResponse | null>(null);
   const [syntaxErrors, setSyntaxErrors] = useState<string[]>([]);
   const [errorLines, setErrorLines] = useState<number[]>([]);
@@ -174,6 +201,7 @@ function HomeContent() {
     setLexico(null);
     setRecursivo(null);
     setLL1(null);
+    setSemantico(null);
     setTraduccion(null);
     setActiveTab(METHOD_TAB[method]);
 
@@ -341,6 +369,59 @@ function HomeContent() {
           }
           break;
         }
+        case "semantico": {
+          const res = await analizarSemantico(code);
+          if (analysisRunId.current !== runId) return;
+          setSemantico(res);
+          if (res.lexico) setLexico(res.lexico);
+          setActiveTab("simbolos");
+          traducirSwift(code)
+            .then((swift) => {
+              if (analysisRunId.current === runId) {
+                setTraduccion(swift);
+              }
+            })
+            .catch(() => {});
+          const lines = [
+            ...(res.lexico?.errores?.map((e) => e.fila) ?? []),
+            ...semanticLines(res.errores_semanticos),
+          ];
+          if (lines.length) {
+            setErrorLines(lines);
+          }
+          if (res.lexico?.errores?.length || res.errores_semanticos?.length) {
+            setActiveTab("errores");
+          }
+          if (res.errores_semanticos?.length) {
+            generarSugerenciasIASemantico(code, res.errores_semanticos)
+              .then((ia) => {
+                if (analysisRunId.current !== runId) return;
+                setSemantico((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        errores_semanticos: attachAISemanticSuggestions(prev.errores_semanticos, ia.sugerencias),
+                      }
+                    : prev
+                );
+              })
+              .catch(() => {
+                if (analysisRunId.current !== runId) return;
+                setSemantico((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        errores_semanticos: prev.errores_semanticos.map((diag) => ({
+                          ...diag,
+                          estado_ia: "error",
+                        })),
+                      }
+                    : prev
+                );
+              });
+          }
+          break;
+        }
       }
     } catch (err) {
       if (analysisRunId.current !== runId) return;
@@ -416,7 +497,7 @@ function HomeContent() {
       >
         {/* Compiler pipeline indicator */}
         {["Codigo", "Lexico", "Sintactico", "Semantico", "Swift"].map((fase, i) => {
-          const faseActiva = method === "lexico" ? 1 : 2;
+          const faseActiva = method === "lexico" ? 1 : method === "semantico" ? 3 : 2;
           const completada = i <= faseActiva;
           const actual = i === faseActiva;
           return (
@@ -448,13 +529,15 @@ function HomeContent() {
         </span>
 
         {/* Results summary badge */}
-        {(lexico || recursivo || ll1) && (
+        {(lexico || recursivo || ll1 || semantico) && (
           <>
             <span style={{ color: "var(--color-border)" }} className="mx-1">|</span>
             <span className="text-[0.6rem] font-mono shrink-0 flex items-center gap-2" style={{ color: "var(--color-muted)" }}>
-              {lexico && <span>{lexico.total_tokens} tokens</span>}
-              {lexico && lexico.total_errores > 0 && (
-                <span style={{ color: "var(--color-error)" }}>{lexico.total_errores} err</span>
+              {(lexico ?? semantico?.lexico ?? recursivo?.lexico ?? ll1?.lexico) && (
+                <span>{(lexico ?? semantico?.lexico ?? recursivo?.lexico ?? ll1?.lexico)!.total_tokens} tokens</span>
+              )}
+              {((lexico ?? semantico?.lexico)?.total_errores ?? 0) > 0 && (
+                <span style={{ color: "var(--color-error)" }}>{(lexico ?? semantico?.lexico)!.total_errores} err léx</span>
               )}
               {recursivo?.valido !== undefined && (
                 <span style={{ color: recursivo.valido ? "var(--color-success)" : "var(--color-error)" }}>
@@ -468,6 +551,17 @@ function HomeContent() {
                 </span>
               )}
               {ll1?.total_pasos ? <span>{ll1.total_pasos} pasos</span> : null}
+              {semantico?.valido !== undefined && (
+                <span style={{ color: semantico.valido ? "var(--color-success)" : "var(--color-error)" }}>
+                  {semantico.valido ? "✓ sem. valida" : "✗ sem. invalida"}
+                </span>
+              )}
+              {semantico?.total_errores_semanticos ? (
+                <span style={{ color: "var(--color-error)" }}>{semantico.total_errores_semanticos} err sem</span>
+              ) : null}
+              {semantico?.tabla_simbolos?.length ? (
+                <span>{semantico.tabla_simbolos.length} simbolos</span>
+              ) : null}
             </span>
           </>
         )}
@@ -528,6 +622,7 @@ function HomeContent() {
             lexico={lexico}
             recursivo={recursivo}
             ll1={ll1}
+            semantico={semantico}
             traduccion={traduccion}
             claudioCode={code}
             syntaxErrors={syntaxErrors}

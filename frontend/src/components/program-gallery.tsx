@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { X, Search } from "lucide-react";
 
 interface ProgramGalleryProps {
@@ -30,6 +29,15 @@ const PROGRAM_TAGS: Record<string, { tags: string[]; complexity: "simple" | "med
   "Quiz 3. Error: falta entonces": { tags: ["quiz3", "error", "si", "entonces"], complexity: "medio" },
   "Quiz 3. Error: parentesis sin cerrar": { tags: ["quiz3", "error", "imprimir", ")"], complexity: "medio" },
   "Quiz 3. Error: multiples fallos": { tags: ["quiz3", "error", "recuperacion", "ia"], complexity: "complejo" },
+  "Quiz 4. SEM-1 declaracion duplicada": { tags: ["quiz4", "sem-1", "duplicado", "tabla"], complexity: "simple" },
+  "Quiz 4. SEM-2 identificador no declarado": { tags: ["quiz4", "sem-2", "no declarado", "tabla"], complexity: "simple" },
+  "Quiz 4. SEM-3 constante reasignada": { tags: ["quiz4", "sem-3", "sea", "constante"], complexity: "simple" },
+  "Quiz 4. SEM-4 tipo incompatible en declaracion": { tags: ["quiz4", "sem-4", "tipo", "declaracion"], complexity: "simple" },
+  "Quiz 4. SEM-5 tipo incompatible en asignacion": { tags: ["quiz4", "sem-5", "tipo", "asignacion"], complexity: "simple" },
+  "Quiz 4. SEM-6 condicion no booleana": { tags: ["quiz4", "sem-6", "si", "mientras", "booleano"], complexity: "medio" },
+  "Quiz 4. SEM-7 limites no numericos en para": { tags: ["quiz4", "sem-7", "para", "numerico"], complexity: "medio" },
+  "Quiz 4. Todas las reglas semanticas": { tags: ["quiz4", "sem-1", "sem-7", "recuperacion"], complexity: "complejo" },
+  "Quiz 4. Caso semantico valido": { tags: ["quiz4", "valido", "funcion", "tabla"], complexity: "medio" },
 };
 
 const COMPLEXITY_COLORS = {
@@ -38,18 +46,40 @@ const COMPLEXITY_COLORS = {
   complejo: "var(--color-error)",
 };
 
+const QUIZ4_QUICK_CASES = [
+  { name: "Quiz 4. SEM-1 declaracion duplicada", label: "SEM-1", detail: "Duplicado" },
+  { name: "Quiz 4. SEM-2 identificador no declarado", label: "SEM-2", detail: "No declarado" },
+  { name: "Quiz 4. SEM-3 constante reasignada", label: "SEM-3", detail: "Constante" },
+  { name: "Quiz 4. SEM-4 tipo incompatible en declaracion", label: "SEM-4", detail: "Tipo en declaracion" },
+  { name: "Quiz 4. SEM-5 tipo incompatible en asignacion", label: "SEM-5", detail: "Tipo en asignacion" },
+  { name: "Quiz 4. SEM-6 condicion no booleana", label: "SEM-6", detail: "Condicion" },
+  { name: "Quiz 4. SEM-7 limites no numericos en para", label: "SEM-7", detail: "Para numerico" },
+  { name: "Quiz 4. Caso semantico valido", label: "Valido", detail: "Sin errores" },
+];
+
+function programSortKey(name: string) {
+  const quickIndex = QUIZ4_QUICK_CASES.findIndex((item) => item.name === name);
+  if (quickIndex >= 0) return quickIndex;
+  if (name.startsWith("Quiz 4.")) return 20;
+  if (name.startsWith("Quiz 3.")) return 40;
+  return 60;
+}
+
 export function ProgramGallery({ programas, onSelect, onClose }: ProgramGalleryProps) {
   const [search, setSearch] = useState("");
 
-  const entries = Object.entries(programas).filter(([name]) => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    const meta = PROGRAM_TAGS[name];
-    return (
-      name.toLowerCase().includes(q) ||
-      meta?.tags.some((t) => t.includes(q))
-    );
-  });
+  const quiz4QuickCases = QUIZ4_QUICK_CASES.filter((item) => programas[item.name]);
+  const entries = Object.entries(programas)
+    .filter(([name]) => {
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      const meta = PROGRAM_TAGS[name];
+      return (
+        name.toLowerCase().includes(q) ||
+        meta?.tags.some((t) => t.includes(q))
+      );
+    })
+    .sort(([a], [b]) => programSortKey(a) - programSortKey(b) || a.localeCompare(b));
 
   return (
     <div
@@ -58,7 +88,7 @@ export function ProgramGallery({ programas, onSelect, onClose }: ProgramGalleryP
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="w-full max-w-2xl max-h-[80vh] rounded-lg overflow-hidden flex flex-col"
+        className="w-full max-w-2xl max-h-[88dvh] min-h-0 rounded-lg overflow-hidden flex flex-col"
         style={{
           backgroundColor: "var(--color-surface)",
           border: "1px solid var(--color-border)",
@@ -75,7 +105,7 @@ export function ProgramGallery({ programas, onSelect, onClose }: ProgramGalleryP
               Programas de Ejemplo
             </h2>
             <p className="text-[0.7rem]" style={{ color: "var(--color-muted)" }}>
-              15 programas validos y casos Quiz 3 para recuperacion de errores
+              Quiz 4 uno por uno, casos Quiz 3 y programas validos
             </p>
           </div>
           <button
@@ -86,6 +116,39 @@ export function ProgramGallery({ programas, onSelect, onClose }: ProgramGalleryP
             <X className="size-4" />
           </button>
         </div>
+
+        {quiz4QuickCases.length > 0 && (
+          <div className="shrink-0 px-4 py-3" style={{ borderBottom: "1px solid var(--color-border)" }}>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold" style={{ color: "var(--color-text)" }}>
+                Quiz 4: seleccionar regla individual
+              </span>
+              <span className="text-[0.6rem] uppercase tracking-wide" style={{ color: "var(--color-muted)" }}>
+                demo 1 por 1
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {quiz4QuickCases.map((item) => (
+                <button
+                  key={item.name}
+                  onClick={() => { onSelect(item.name); onClose(); }}
+                  className="rounded-md px-2 py-2 text-left transition-colors"
+                  style={{
+                    backgroundColor: item.label === "Valido" ? "rgba(166,227,161,.08)" : "rgba(243,139,168,.07)",
+                    border: item.label === "Valido" ? "1px solid rgba(166,227,161,.3)" : "1px solid rgba(243,139,168,.28)",
+                  }}
+                >
+                  <span className="block text-xs font-bold" style={{ color: "var(--color-text)" }}>
+                    {item.label}
+                  </span>
+                  <span className="block truncate text-[0.6rem]" style={{ color: "var(--color-muted)" }}>
+                    {item.detail}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Search */}
         <div className="px-4 py-2 shrink-0" style={{ borderBottom: "1px solid var(--color-border)" }}>
@@ -98,7 +161,7 @@ export function ProgramGallery({ programas, onSelect, onClose }: ProgramGalleryP
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por nombre o constructo (si, para, clase...)"
+              placeholder="Buscar por regla o constructo (sem-1, si, para, clase...)"
               className="flex-1 bg-transparent text-xs outline-none"
               style={{ color: "var(--color-text)" }}
               autoFocus
@@ -107,12 +170,17 @@ export function ProgramGallery({ programas, onSelect, onClose }: ProgramGalleryP
         </div>
 
         {/* Programs grid */}
-        <ScrollArea className="flex-1">
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+          style={{ scrollbarWidth: "thin", scrollbarColor: "var(--color-border) transparent" }}
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-4">
             {entries.map(([name, code]) => {
               const meta = PROGRAM_TAGS[name] ?? { tags: [], complexity: "simple" as const };
               const lineCount = code.split("\n").length;
-              const isInvalidDemo = name.startsWith("Quiz 3.");
+              const isQuiz3Demo = name.startsWith("Quiz 3.");
+              const isQuiz4Demo = name.startsWith("Quiz 4.");
+              const isInvalidDemo = isQuiz3Demo || (isQuiz4Demo && !name.includes("valido"));
               return (
                 <button
                   key={name}
@@ -142,7 +210,7 @@ export function ProgramGallery({ programas, onSelect, onClose }: ProgramGalleryP
                         color: COMPLEXITY_COLORS[meta.complexity],
                       }}
                     >
-                      {isInvalidDemo ? "quiz3" : meta.complexity}
+                      {isQuiz4Demo ? "quiz4" : isQuiz3Demo ? "quiz3" : meta.complexity}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-1 mb-1.5">
@@ -166,7 +234,7 @@ export function ProgramGallery({ programas, onSelect, onClose }: ProgramGalleryP
               );
             })}
           </div>
-        </ScrollArea>
+        </div>
       </div>
     </div>
   );

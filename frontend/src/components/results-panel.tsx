@@ -7,16 +7,19 @@ import { LL1Table } from "@/components/ll1-table";
 import { TraceView } from "@/components/trace-view";
 import { SwiftView } from "@/components/swift-view";
 import { ErrorsView } from "@/components/errors-view";
+import { SymbolTableView } from "@/components/symbol-table-view";
 import type {
   LexicoResponse,
   RecursivoResponse,
   LL1Response,
   TraducirResponse,
   SyntaxDiagnostic,
+  SemanticoResponse,
+  SemanticDiagnostic,
 } from "@/lib/api";
 
-export type ResultTab = "tokens" | "arbol" | "tabla" | "traza" | "swift" | "errores";
-export type AnalysisMethod = "lexico" | "recursivo" | "ll1";
+export type ResultTab = "tokens" | "arbol" | "tabla" | "traza" | "swift" | "errores" | "simbolos";
+export type AnalysisMethod = "lexico" | "recursivo" | "ll1" | "semantico";
 
 interface ResultsPanelProps {
   activeTab: ResultTab;
@@ -25,6 +28,7 @@ interface ResultsPanelProps {
   lexico: LexicoResponse | null;
   recursivo: RecursivoResponse | null;
   ll1: LL1Response | null;
+  semantico: SemanticoResponse | null;
   traduccion: TraducirResponse | null;
   claudioCode: string;
   syntaxErrors: string[];
@@ -52,6 +56,12 @@ const TABS_POR_METODO: Record<AnalysisMethod, { value: ResultTab; label: string 
     { value: "swift", label: "Swift" },
     { value: "errores", label: "Errores" },
   ],
+  semantico: [
+    { value: "tokens", label: "Tokens" },
+    { value: "simbolos", label: "Tabla Simbolos" },
+    { value: "swift", label: "Swift" },
+    { value: "errores", label: "Errores" },
+  ],
 };
 
 export function ResultsPanel({
@@ -61,6 +71,7 @@ export function ResultsPanel({
   lexico,
   recursivo,
   ll1,
+  semantico,
   traduccion,
   claudioCode,
   syntaxErrors,
@@ -78,6 +89,7 @@ export function ResultsPanel({
 
   const activeLexico =
     method === "ll1" ? ll1?.lexico ?? lexico :
+    method === "semantico" ? semantico?.lexico ?? lexico :
     method === "recursivo" || method === "lexico" ? recursivo?.lexico ?? lexico :
     lexico;
 
@@ -88,13 +100,17 @@ export function ResultsPanel({
       ? recursivo?.errores_sintacticos ?? []
       : [];
 
+  const semanticDiagnostics: SemanticDiagnostic[] =
+    method === "semantico" ? semantico?.errores_semanticos ?? [] : [];
+
   const lexErrors = activeLexico?.errores?.length ?? 0;
   const runtimeErrors = syntaxErrors.length;
-  const totalErrors = lexErrors + syntaxDiagnostics.length + runtimeErrors;
+  const totalErrors = lexErrors + syntaxDiagnostics.length + semanticDiagnostics.length + runtimeErrors;
 
   /* Extra counts for badges */
   const tokenCount = activeLexico?.total_tokens ?? 0;
   const traceCount = ll1?.total_pasos ?? 0;
+  const simbolCount = semantico?.tabla_simbolos?.length ?? 0;
 
   return (
     <div className="flex h-full flex-col">
@@ -134,6 +150,11 @@ export function ResultsPanel({
                   {traceCount}
                 </span>
               )}
+              {tab.value === "simbolos" && simbolCount > 0 && (
+                <span className="text-[0.6rem] tabular-nums" style={{ color: "var(--color-muted)" }}>
+                  {simbolCount}
+                </span>
+              )}
               {/* Error badge */}
               {tab.value === "errores" && totalErrors > 0 && (
                 <span
@@ -159,8 +180,8 @@ export function ResultsPanel({
       <div className="flex-1 overflow-hidden">
         {activeTab === "tokens" && (
           <TokensView
-            tokens={lexico?.tokens ?? ll1?.lexico?.tokens ?? []}
-            tablaSimbolos={lexico?.tabla_simbolos ?? ll1?.lexico?.tabla_simbolos ?? []}
+            tokens={activeLexico?.tokens ?? []}
+            tablaSimbolos={activeLexico?.tabla_simbolos ?? []}
           />
         )}
         {activeTab === "arbol" && (
@@ -170,6 +191,7 @@ export function ResultsPanel({
               recursivo?.arbol_parcial ??
               ll1?.arbol ??
               ll1?.arbol_parcial ??
+              semantico?.arbol_parcial ??
               null
             }
             totalNodos={recursivo?.total_nodos ?? ll1?.total_nodos}
@@ -196,6 +218,12 @@ export function ResultsPanel({
             onHighlightCell={handleHighlightCell}
           />
         )}
+        {activeTab === "simbolos" && (
+          <SymbolTableView
+            simbolos={semantico?.tabla_simbolos ?? []}
+            valido={semantico?.valido ?? false}
+          />
+        )}
         {activeTab === "swift" && (
           <SwiftView
             claudioCode={claudioCode}
@@ -207,6 +235,7 @@ export function ResultsPanel({
           <ErrorsView
             errores={activeLexico?.errores ?? []}
             syntaxDiagnostics={syntaxDiagnostics}
+            semanticDiagnostics={semanticDiagnostics}
             runtimeErrors={syntaxErrors}
             onClickError={onClickError}
           />

@@ -4,6 +4,8 @@ Compilador fuente-a-fuente **Claudio** (espanol) → **Swift** con interfaz web 
 
 Incluye Entrega 3 / Quiz 3: recuperacion de errores sintacticos con reporte detallado, sugerencias deterministicas y sugerencias complementarias con OpenAI.
 
+Incluye Entrega 4 / Quiz 4: analisis semantico con tabla de simbolos, 7 reglas semanticas clasicas y sugerencias complementarias con OpenAI.
+
 ## Estructura
 
 ```
@@ -15,6 +17,7 @@ new_version/
 │   ├── parser_ll1.py # Parser predictivo LL(1)
 │   ├── diagnostics.py # Errores sintacticos estructurados + modo panico
 │   ├── ai_suggestions.py # Sugerencias IA con OpenAI
+│   ├── semantico.py  # Analizador semantico + tabla de simbolos
 │   ├── arbol.py      # Nodo del arbol + serializacion
 │   ├── traductor.py  # Traduccion Claudio → Swift
 │   ├── programas.py  # 15 programas de ejemplo
@@ -85,8 +88,10 @@ npm start
 | POST | `/api/lexico` | Analisis lexico |
 | POST | `/api/recursivo` | Parser descendente recursivo |
 | POST | `/api/ll1` | Parser predictivo LL(1) |
+| POST | `/api/semantico` | Analisis semantico con tabla de simbolos |
 | POST | `/api/traducir` | Traduccion Claudio → Swift |
 | POST | `/api/sugerencias-ia` | Sugerencias IA en lote para errores sintacticos |
+| POST | `/api/sugerencias-ia-semantico` | Sugerencias IA para errores semanticos |
 
 Todos los POST reciben `{ "codigo": "..." }`.
 
@@ -144,12 +149,41 @@ OPENAI_TIMEOUT_SECONDS=8
 OPENAI_MAX_ERRORS=8
 ```
 
+## Entrega 4 / Quiz 4 — Analisis semantico
+
+El endpoint `/api/semantico` ejecuta:
+
+```text
+Lexico -> Parser descendente recursivo -> Analizador semantico
+```
+
+La fase semantica esta separada en `backend/semantico.py` y recorre el AST con una pasada tipo visitor.
+
+Reglas implementadas:
+
+| Regla | Validacion |
+|-------|------------|
+| `SEM-1` | Declaracion duplicada en el mismo ambito |
+| `SEM-2` | Uso de identificador no declarado |
+| `SEM-3` | Reasignacion de constante declarada con `sea` |
+| `SEM-4` | Tipo incompatible en declaracion |
+| `SEM-5` | Tipo incompatible en asignacion |
+| `SEM-6` | Condicion de `si`/`mientras` no booleana |
+| `SEM-7` | Limites o `paso` no numericos en ciclo `para` |
+
+Cada error semantico incluye `fila`, `columna`, `lexema`, `regla`, `mensaje`, `sugerencia` y estado de IA. La tabla de simbolos almacena `nombre`, `tipo`, `inmutable`, `inicializado`, `ambito`, `fila` y `columna`.
+
+Documento entregable:
+
+- `docs/quiz4/gramatica_semantica_quiz4.html`
+- `docs/quiz4/gramatica_semantica_quiz4.pdf` si fue generado localmente con Chrome headless.
+
 ## Pruebas
 
 ```bash
 cd backend
-python3 -m py_compile diagnostics.py ai_suggestions.py lexer.py parser_rd.py parser_ll1.py main.py
-python3 -m unittest test_quiz3.py test_quiz3_diagnostic_cases.py
+python3 -m py_compile diagnostics.py ai_suggestions.py lexer.py parser_rd.py parser_ll1.py semantico.py main.py
+python3 -m unittest test_quiz3.py test_quiz3_diagnostic_cases.py test_quiz4_semantico.py
 
 cd ../frontend
 npm run lint
