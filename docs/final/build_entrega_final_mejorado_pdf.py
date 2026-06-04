@@ -451,7 +451,7 @@ def story() -> list:
                 ["3", "Reglas Semánticas Implementadas (SEM-1 … SEM-7)", "8"],
                 ["4", "Cómo se Materializa en Claudio", "9"],
                 ["5", "Pruebas desde la Interfaz Gráfica", "10"],
-                ["6", "Bonus IA con OpenAI", "13"],
+                ["6", "Validación IA con OpenAI", "13"],
                 ["7", "Conclusiones", "13"],
             ],
             [0.9 * inch, CONTENT_W - 1.6 * inch, 0.7 * inch],
@@ -474,7 +474,7 @@ def story() -> list:
                 ["Tabla de símbolos en semántica", "El análisis conserva nombre, tipo, ámbito, mutabilidad, fila y columna para validar reglas SEM."],
                 ["Casos de prueba desde UI", "La galería incluye casos válidos primero y casos con fallas al final."],
                 ["Swift como lenguaje destino", "El panel Swift muestra contraste Claudio/Swift y estado de validación."],
-                ["Bonus IA", "OpenAI revisa la salida Swift generada sin reemplazar las reglas determinísticas del compilador."],
+                ["Validación IA", "Se aplicó OpenAI para revisar la salida Swift generada sin reemplazar las reglas determinísticas del compilador."],
             ],
             [2.05 * inch, CONTENT_W - 2.05 * inch],
         )
@@ -858,10 +858,10 @@ sufijo_id      -> ( argumentos ) | . ID sufijo_id | ε"""
     )
 
     flow.append(PageBreak())
-    flow.append(section_title("6", "Bonus IA con OpenAI"))
+    flow.append(section_title("6", "Validación IA con OpenAI"))
     flow.append(
         p(
-            "La integración con OpenAI funciona como revisión posterior del lenguaje destino. Claudio decide de forma determinística si el programa fuente es válido; solo cuando esa decisión es positiva se revisa el Swift generado.",
+            "Se aplicó OpenAI como revisión posterior del lenguaje destino. Claudio decide de forma determinística si el programa fuente es válido; solo cuando esa decisión es positiva se revisa el Swift generado para comprobar que la traducción conserva la intención del usuario.",
         )
     )
     flow.append(
@@ -880,9 +880,9 @@ sufijo_id      -> ( argumentos ) | . ID sufijo_id | ε"""
     flow.append(Spacer(1, 7))
     flow.append(
         callout(
-            "Lectura correcta del bonus",
+            "Alcance de la validación IA",
             [
-                "El bonus no convierte a Claudio en un validador probabilístico. La IA se usa para explicar y revisar el Swift ya generado; la aceptación del programa sigue dependiendo de las fases del compilador.",
+                "La integración IA no reemplaza la gramática, la tabla de símbolos ni las reglas semánticas. Su papel es revisar el Swift que Claudio ya produjo y explicar si la salida destino mantiene la intención del programa fuente.",
             ],
             bg=GREEN_BG,
             border=GREEN,
@@ -907,7 +907,7 @@ sufijo_id      -> ( argumentos ) | . ID sufijo_id | ε"""
                 "La gramática ampliada y las acciones SDT cubren variables, funciones, clases, bloques, condicionales, ciclos y expresiones.",
                 "Las reglas semánticas SEM-1 a SEM-7 se explican desde su concepto y desde su efecto real sobre la generación del lenguaje destino.",
                 "La interfaz pública permite reproducir los casos de prueba desde la galería visual de Claudio, sin depender de pasos técnicos externos.",
-                "OpenAI aporta una revisión complementaria del Swift, pero la validez del programa depende de las reglas determinísticas del compilador.",
+                "La validación IA con OpenAI quedó aplicada sobre el Swift generado, mientras la validez del programa sigue dependiendo de las reglas determinísticas del compilador.",
             ]
         )
     )
