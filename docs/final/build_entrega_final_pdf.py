@@ -287,7 +287,7 @@ def story() -> list:
 
     flow.append(p("1. Alcance Del Compilador Final", "H1x"))
     flow.append(p("Este documento presenta el compilador Claudio como resultado final: un lenguaje fuente en espanol que se analiza en cuatro fases y produce codigo Swift como lenguaje destino. El punto central no es solo listar componentes, sino mostrar que la traduccion se obtiene despues de validar correctamente el programa fuente.", "Bodyx"))
-    flow.append(p("Para el lector, la propiedad mas importante es la siguiente: Claudio solo muestra codigo Swift cuando el programa pasa analisis lexico, sintactico y semantico. Si alguna fase falla, la interfaz explica el error y bloquea la salida destino.", "Bodyx"))
+    flow.append(p("La propiedad mas importante para la evaluacion es la siguiente: Claudio solo muestra codigo Swift cuando el programa pasa analisis lexico, sintactico y semantico. Si alguna fase falla, la interfaz explica el error y bloquea la salida destino.", "Bodyx"))
     flow.append(simple_table([
         ["Requisito del enunciado", "Evidencia en Claudio"],
         ["Lexico -> sintactico -> semantico -> SDT", "Endpoint /api/compilar encadena las fases y bloquea Swift si alguna falla."],
@@ -432,42 +432,38 @@ sufijo_id -> ( argumentos ) | . ID sufijo_id | ε"""))
     flow.append(PageBreak())
     flow.append(p("3. Reglas Semanticas Implementadas", "H1x"))
     flow.append(simple_table([
-        ["Regla", "Validacion", "Modulo"],
-        ["SEM-1", "Declaracion duplicada en el mismo ambito.", "backend/semantico.py"],
-        ["SEM-2", "Uso de identificador no declarado.", "backend/semantico.py"],
-        ["SEM-3", "Reasignacion de constante declarada con sea.", "backend/semantico.py"],
-        ["SEM-4", "Tipo incompatible en declaracion.", "backend/semantico.py"],
-        ["SEM-5", "Tipo incompatible en asignacion.", "backend/semantico.py"],
-        ["SEM-6", "Condicion de si/mientras no booleana.", "backend/semantico.py"],
-        ["SEM-7", "Limites desde/hasta/paso del para no numericos.", "backend/semantico.py"],
-    ], [0.75 * inch, 4.6 * inch, CONTENT_W - 5.35 * inch]))
+        ["Regla", "Logica tecnica", "Como se aplica"],
+        ["SEM-1", "Evita nombres repetidos dentro del mismo ambito.", "Antes de registrar una variable, funcion, clase, atributo o parametro, se consulta el ambito actual de la tabla de simbolos."],
+        ["SEM-2", "Impide usar identificadores inexistentes.", "Cada aparicion de un identificador en expresiones, llamadas o asignaciones se resuelve contra la pila de ambitos."],
+        ["SEM-3", "Protege constantes declaradas con sea.", "La tabla conserva si el simbolo es inmutable; una asignacion posterior a ese nombre se reporta como error."],
+        ["SEM-4", "Valida que el valor inicial coincida con el tipo declarado.", "Se infiere el tipo de la expresion y se compara con el tipo de la declaracion, permitiendo entero hacia real."],
+        ["SEM-5", "Valida asignaciones posteriores.", "El tipo almacenado en la tabla se contrasta con el tipo inferido de la nueva expresion asignada."],
+        ["SEM-6", "Exige condiciones booleanas.", "Las expresiones de si y mientras deben inferirse como booleano; un entero, cadena o real no sirve como condicion."],
+        ["SEM-7", "Exige limites numericos en para.", "desde, hasta y paso se infieren y deben pertenecer al dominio numerico: entero o real."],
+    ], [0.75 * inch, 3.1 * inch, CONTENT_W - 3.85 * inch]))
     flow.append(Spacer(1, 6))
     flow.append(p("La tabla de simbolos almacena nombre, tipo, inmutabilidad, estado de inicializacion, ambito, fila y columna. La inferencia de tipos es conservadora: si una expresion no se puede determinar con certeza, se evita un falso positivo semantico.", "Bodyx"))
 
     flow.append(p("4. Como Se Materializa En Claudio", "H1x"))
-    flow.append(p("La implementacion se divide por fases para que el resultado sea observable: el lector puede ver tokens, tabla de simbolos, errores y codigo Swift desde la misma interfaz. La separacion modular permite explicar que cada fase tiene una responsabilidad concreta dentro del compilador.", "Bodyx"))
+    flow.append(p("La solucion se implemento como una cadena de fases conectadas. Cada fase recibe el resultado de la anterior, agrega informacion propia y decide si el proceso puede continuar. Por eso la salida Swift no aparece como una conversion directa de texto, sino como el ultimo paso de una validacion completa del programa fuente.", "Bodyx"))
+    flow.append(p("En la interfaz, esta logica se observa de forma progresiva: primero se reconocen tokens, luego se construye el arbol sintactico, despues se valida la tabla de simbolos y finalmente se muestra el codigo Swift solo si no existen errores pendientes.", "Bodyx"))
     flow.append(simple_table([
-        ["Modulo", "Responsabilidad"],
-        ["backend/lexer.py", "Analisis lexico, tokens, errores lexicos y posiciones."],
-        ["backend/parser_rd.py", "Parser descendente recursivo, AST y recuperacion sintactica."],
-        ["backend/parser_ll1.py", "Parser predictivo LL(1), FIRST/FOLLOW, tabla y traza."],
-        ["backend/semantico.py", "Reglas SEM-1..SEM-7 y tabla de simbolos."],
-        ["backend/traductor.py", "Acciones SDT practicas Claudio -> Swift y mapeo linea a linea."],
-        ["backend/ai_suggestions.py", "OpenAI para sugerencias y validacion del Swift generado con fallback."],
-        ["backend/main.py", "API FastAPI; /api/compilar encadena la entrega final."],
-        ["frontend/src/components/swift-view.tsx", "Visualizacion mejorada del lenguaje destino Swift."],
-    ], [2.3 * inch, CONTENT_W - 2.3 * inch]))
+        ["Fase", "Entrada", "Proceso tecnico", "Salida"],
+        ["Lexica", "Texto Claudio", "Recorre caracteres, clasifica lexemas y conserva fila/columna.", "Tokens, errores lexicos y simbolos lexicos."],
+        ["Sintactica", "Tokens validos", "Aplica la gramatica descendente recursiva, construye AST y recupera errores cuando es posible.", "Arbol de derivacion, diagnosticos sintacticos y estado valido/invalido."],
+        ["Semantica", "AST", "Recorre el arbol con tabla de simbolos por ambitos e inferencia conservadora de tipos.", "Errores SEM-1..SEM-7 y tabla de simbolos."],
+        ["SDT Swift", "Programa semanticamente valido", "Aplica acciones de traduccion asociadas a producciones: tipos, bloques, condiciones, ciclos, funciones y expresiones.", "Codigo Swift y mapeo Claudio->Swift."],
+        ["IA opcional", "Swift generado", "OpenAI revisa la salida destino sin reemplazar las decisiones deterministicas del compilador.", "Resumen de validacion y sugerencias si aplica."],
+    ], [0.95 * inch, 1.15 * inch, 3.05 * inch, CONTENT_W - 5.15 * inch]))
     flow.append(Spacer(1, 6))
-    flow.append(p("Contrato de /api/compilar:", "H2x"))
-    flow.append(code("""POST /api/compilar { "codigo": "..." }
-Respuesta:
-  valido: boolean
-  swift: string                 // vacio si hay errores
-  mapeo: [{ claudio, swift }]   // vacio si hay errores
-  errores: [{ fase, fila, columna, lexema, mensaje, regla?, esperado?, sugerencia? }]
-  tabla_simbolos: [...]
-  lexico, sintactico, semantico
-  validacion_ia"""))
+    flow.append(p("Compuerta de generacion Swift", "H2x"))
+    flow.append(simple_table([
+        ["Situacion", "Comportamiento implementado"],
+        ["Hay error lexico", "Se reporta la fase lexica con posicion y lexema; no se ejecuta la traduccion a Swift."],
+        ["Hay error sintactico", "Se reporta el token encontrado y el fragmento esperado por la gramatica; no se genera codigo destino."],
+        ["Hay error semantico", "Se reporta la regla SEM correspondiente y la tabla de simbolos parcial; Swift queda bloqueado."],
+        ["No hay errores", "Se sintetiza Swift, se muestra el mapeo fuente-destino y se activa la validacion IA opcional."],
+    ], [2.0 * inch, CONTENT_W - 2.0 * inch]))
 
     flow.append(p("5. Pruebas Desde La Interfaz Grafica", "H1x"))
     flow.append(p("Los tres casos exigidos se demuestran desde la UI de Claudio, usando el selector de programas de ejemplo y el metodo Semantico. Esto permite al evaluador observar el comportamiento real del compilador sin ejecutar comandos.", "Bodyx"))
