@@ -294,7 +294,7 @@ def story() -> list:
         ["Errores unificados", "Cada diagnostico final trae fase, fila, columna, lexema y mensaje."],
         ["Tabla de simbolos disponible durante SDT", "AnalizadorSemantico construye tabla de simbolos y /api/compilar la retorna junto con la salida."],
         ["Tres casos de prueba", "Disponibles y seleccionables desde la galeria de programas de la interfaz grafica."],
-        ["Bonus IA", "OpenAI valida la salida Swift generada; si no hay API key, el compilador sigue funcionando."],
+        ["Bonus IA", "OpenAI revisa la salida Swift generada y aporta una lectura complementaria sin reemplazar al compilador."],
     ], [2.2 * inch, CONTENT_W - 2.2 * inch]))
     flow.append(Spacer(1, 6))
     flow.append(p("Cadena de fases:", "H2x"))
@@ -513,20 +513,18 @@ npm run lint
 npm run build"""))
 
     flow.append(p("6. Bonus IA Con OpenAI", "H1x"))
-    flow.append(p("Se implementa una modalidad complementaria: OpenAI revisa el codigo Swift generado solo despues de que el compilador deterministico acepta el programa. La IA no decide si Claudio es valido; solo resume problemas o sugerencias sobre la salida destino.", "Bodyx"))
-    flow.append(sdt_box("Modalidad y fallback", [
-        "Variable usada: OPENAI_API_KEY. Modelo por defecto: OPENAI_MODEL o gpt-5.4-mini.",
-        "Si no hay API key o falla la llamada, validacion_ia.estado_ia queda en no_disponible/error y la salida Swift deterministica se conserva.",
-        "Prompt: revisar si el Swift generado parece sintacticamente razonable, conserva la intencion Claudio y mantiene estructuras balanceadas.",
-    ]))
-    flow.append(code("""Ejemplo de respuesta IA sin API key:
-validacion_ia = {
-  "estado_ia": "no_disponible",
-  "valido": null,
-  "resumen": "Configura OPENAI_API_KEY en el backend para activar la validacion IA del Swift generado.",
-  "problemas": [],
-  "sugerencias": []
-}"""))
+    flow.append(p("La integracion con OpenAI se usa como una revision posterior del lenguaje destino. Primero Claudio decide, con sus reglas propias, si el programa fuente es valido. Solo cuando esa validacion termina sin errores se envia el Swift generado a revision complementaria.", "Bodyx"))
+    flow.append(p("Esto evita que la IA sustituya al compilador: OpenAI no acepta ni rechaza programas Claudio. Su papel es revisar la calidad de la traduccion generada y explicar si el Swift conserva la intencion del programa fuente.", "Bodyx"))
+    flow.append(simple_table([
+        ["Aspecto", "Descripcion para la entrega"],
+        ["Momento de uso", "Despues de lexico, sintactico, semantico y SDT. Si hay errores, no se consulta IA porque no existe salida destino valida."],
+        ["Informacion revisada", "Codigo Claudio original y codigo Swift generado por las acciones de traduccion."],
+        ["Criterios enviados", "Sintaxis Swift razonable, llaves y bloques balanceados, operadores y literales traducidos, y conservacion de la intencion del programa."],
+        ["Resultado mostrado", "Resumen breve en la interfaz, junto con posibles problemas y sugerencias sobre el Swift."],
+        ["Comportamiento si no esta disponible", "La compilacion deterministica se conserva; simplemente no se muestra la revision complementaria."],
+    ], [1.7 * inch, CONTENT_W - 1.7 * inch]))
+    flow.append(Spacer(1, 6))
+    flow.append(p("En la prueba valida de la interfaz se observa esta integracion: la pestaña Swift muestra el codigo destino y, debajo, un resumen de validacion IA que indica si la traduccion conserva la estructura e intencion del programa Claudio.", "Bodyx"))
 
     flow.append(p("7. Conclusiones", "H1x"))
     flow.append(bullet([
