@@ -11,6 +11,7 @@ from reportlab.lib.units import inch
 from reportlab.platypus import (
     BaseDocTemplate,
     Frame,
+    Image,
     ListFlowable,
     ListItem,
     PageBreak,
@@ -26,6 +27,7 @@ from reportlab.platypus import (
 ROOT = Path(__file__).resolve().parents[2]
 OUT_REPO = ROOT / "docs" / "final" / "entrega_final_claudio_swift.pdf"
 OUT_DOWNLOADS = Path("/Users/juancarj/Downloads/Entrega Final Claudio.pdf")
+EVIDENCE_DIR = ROOT / "docs" / "final" / "evidencias_ui"
 
 PAGE_W, PAGE_H = letter
 MARGIN_X = 0.68 * inch
@@ -220,6 +222,26 @@ def code(text: str) -> Table:
     return t
 
 
+def screenshot(path: Path, caption: str) -> Table:
+    img = Image(str(path))
+    max_w = CONTENT_W
+    max_h = 3.95 * inch
+    scale = min(max_w / img.imageWidth, max_h / img.imageHeight)
+    img.drawWidth = img.imageWidth * scale
+    img.drawHeight = img.imageHeight * scale
+    table = Table([[img], [p(caption, "Smallx")]], colWidths=[CONTENT_W])
+    table.setStyle(TableStyle([
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("BOX", (0, 0), (0, 0), 0.45, LINE),
+        ("BACKGROUND", (0, 1), (0, 1), LIGHT),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+    ]))
+    return table
+
+
 def simple_table(rows: list[list[str]], widths: list[float] | None = None) -> Table:
     table_rows = [[p(xml(cell), "Smallx") for cell in row] for row in rows]
     col_widths = widths or [CONTENT_W / len(rows[0])] * len(rows[0])
@@ -264,13 +286,14 @@ def story() -> list:
     flow.append(PageBreak())
 
     flow.append(p("1. Alcance Del Compilador Final", "H1x"))
-    flow.append(p("La entrega integra las cuatro fases del compilador: analisis lexico, analisis sintactico, analisis semantico y traduccion dirigida por sintaxis hacia Swift. La salida destino solo se produce cuando las fases deterministicas aceptan el programa fuente.", "Bodyx"))
+    flow.append(p("Este documento presenta el compilador Claudio como resultado final: un lenguaje fuente en espanol que se analiza en cuatro fases y produce codigo Swift como lenguaje destino. El punto central no es solo listar componentes, sino mostrar que la traduccion se obtiene despues de validar correctamente el programa fuente.", "Bodyx"))
+    flow.append(p("Para el lector, la propiedad mas importante es la siguiente: Claudio solo muestra codigo Swift cuando el programa pasa analisis lexico, sintactico y semantico. Si alguna fase falla, la interfaz explica el error y bloquea la salida destino.", "Bodyx"))
     flow.append(simple_table([
         ["Requisito del enunciado", "Evidencia en Claudio"],
         ["Lexico -> sintactico -> semantico -> SDT", "Endpoint /api/compilar encadena las fases y bloquea Swift si alguna falla."],
         ["Errores unificados", "Cada diagnostico final trae fase, fila, columna, lexema y mensaje."],
         ["Tabla de simbolos disponible durante SDT", "AnalizadorSemantico construye tabla de simbolos y /api/compilar la retorna junto con la salida."],
-        ["Tres archivos de prueba", "tests/final/caso_valido.claudio, caso_semantico.claudio, caso_lexico_sintactico.claudio."],
+        ["Tres casos de prueba", "Disponibles y seleccionables desde la galeria de programas de la interfaz grafica."],
         ["Bonus IA", "OpenAI valida la salida Swift generada; si no hay API key, el compilador sigue funcionando."],
     ], [2.2 * inch, CONTENT_W - 2.2 * inch]))
     flow.append(Spacer(1, 6))
@@ -421,7 +444,8 @@ sufijo_id -> ( argumentos ) | . ID sufijo_id | ε"""))
     flow.append(Spacer(1, 6))
     flow.append(p("La tabla de simbolos almacena nombre, tipo, inmutabilidad, estado de inicializacion, ambito, fila y columna. La inferencia de tipos es conservadora: si una expresion no se puede determinar con certeza, se evita un falso positivo semantico.", "Bodyx"))
 
-    flow.append(p("4. Implementacion En El Repositorio", "H1x"))
+    flow.append(p("4. Como Se Materializa En Claudio", "H1x"))
+    flow.append(p("La implementacion se divide por fases para que el resultado sea observable: el lector puede ver tokens, tabla de simbolos, errores y codigo Swift desde la misma interfaz. La separacion modular permite explicar que cada fase tiene una responsabilidad concreta dentro del compilador.", "Bodyx"))
     flow.append(simple_table([
         ["Modulo", "Responsabilidad"],
         ["backend/lexer.py", "Analisis lexico, tokens, errores lexicos y posiciones."],
@@ -445,15 +469,46 @@ Respuesta:
   lexico, sintactico, semantico
   validacion_ia"""))
 
-    flow.append(p("5. Pruebas Obligatorias", "H1x"))
+    flow.append(p("5. Pruebas Desde La Interfaz Grafica", "H1x"))
+    flow.append(p("Los tres casos exigidos se demuestran desde la UI de Claudio, usando el selector de programas de ejemplo y el metodo Semantico. Esto permite al evaluador observar el comportamiento real del compilador sin ejecutar comandos.", "Bodyx"))
     flow.append(simple_table([
-        ["Archivo", "Objetivo", "Resultado esperado"],
-        ["tests/final/caso_valido.claudio", "Programa correcto con funcion, constante, ciclo para, acumulador, imprimir y condicional.", "valido=true; swift no vacio; mapeo no vacio; tabla de simbolos con datos."],
-        ["tests/final/caso_semantico.claudio", "Sintaxis correcta con SEM-3, SEM-4 y SEM-6.", "valido=false; swift=\"\"; fase semantico en errores."],
-        ["tests/final/caso_lexico_sintactico.claudio", "Falta entonces, parentesis sin cerrar y caracter @.", "valido=false; swift=\"\"; tabla semantica vacia; fases lexico/sintactico."],
+        ["Caso en la UI", "Que demuestra", "Observacion esperada"],
+        ["Final. Valido con Swift", "Programa correcto con funcion, constante, ciclo para, acumulador, imprimir y condicional.", "La pestaña Swift muestra codigo destino, mapeo Claudio->Swift y validacion IA."],
+        ["Final. Error semantico sin Swift", "Sintaxis correcta con SEM-3, SEM-4 y SEM-6.", "La pestaña Swift muestra bloqueo; los errores aparecen como semanticos."],
+        ["Final. Error lexico/sintactico sin Swift", "Falta entonces, parentesis sin cerrar y caracter @.", "La pestaña Swift muestra bloqueo; los errores aparecen como lexicos y sintacticos."],
     ], [2.15 * inch, 3.0 * inch, CONTENT_W - 5.15 * inch]))
     flow.append(Spacer(1, 6))
-    flow.append(p("Comando de verificacion:", "H2x"))
+    flow.append(p("Las capturas siguientes fueron tomadas desde la aplicacion desplegada en claudio.dautia.com. En cada una se observa el estado de la cadena de fases y el comportamiento de la pestaña Swift.", "Bodyx"))
+    flow.append(PageBreak())
+    flow.append(p("5.1 Caso Valido: Swift Generado", "H2x"))
+    flow.append(screenshot(
+        EVIDENCE_DIR / "01_ui_caso_valido_swift.png",
+        "Caso Final. Valido con Swift: la interfaz confirma fases validas y muestra codigo Swift, mapeo y validacion IA.",
+    ))
+    flow.append(PageBreak())
+    flow.append(p("5.2 Caso Semantico: Swift Bloqueado", "H2x"))
+    flow.append(screenshot(
+        EVIDENCE_DIR / "02_ui_caso_semantico_bloqueado.png",
+        "Caso Final. Error semantico sin Swift: la sintaxis es aceptada, pero los errores SEM-3, SEM-4 y SEM-6 bloquean la salida destino.",
+    ))
+    flow.append(Spacer(1, 8))
+    flow.append(p("5.3 Caso Lexico/Sintactico: Swift Bloqueado", "H2x"))
+    flow.append(screenshot(
+        EVIDENCE_DIR / "03_ui_caso_lexico_sintactico_bloqueado.png",
+        "Caso Final. Error lexico/sintactico sin Swift: el compilador detecta errores tempranos y no permite generar codigo destino.",
+    ))
+
+    flow.append(PageBreak())
+    flow.append(p("5.4 Respaldo Tecnico De Las Pruebas", "H2x"))
+    flow.append(p("Los mismos programas usados en la UI tambien quedan guardados como archivos fuente para reproducibilidad y regresion automatizada.", "Bodyx"))
+    flow.append(simple_table([
+        ["Archivo fuente", "Caso UI equivalente"],
+        ["tests/final/caso_valido.claudio", "Final. Valido con Swift"],
+        ["tests/final/caso_semantico.claudio", "Final. Error semantico sin Swift"],
+        ["tests/final/caso_lexico_sintactico.claudio", "Final. Error lexico/sintactico sin Swift"],
+    ], [3.0 * inch, CONTENT_W - 3.0 * inch]))
+    flow.append(Spacer(1, 6))
+    flow.append(p("Verificacion automatizada complementaria:", "H2x"))
     flow.append(code("""cd backend
 python3 -m unittest test_quiz3.py test_quiz3_diagnostic_cases.py test_quiz4_semantico.py test_entrega_final.py
 
