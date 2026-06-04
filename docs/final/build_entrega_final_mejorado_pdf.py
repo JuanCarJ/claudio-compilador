@@ -197,6 +197,14 @@ def make_styles():
             textColor=colors.HexColor("#111827"),
         )
     )
+    base.add(
+        ParagraphStyle(
+            name="ProdCode",
+            parent=base["CodeSmall"],
+            fontName="Courier-Bold",
+            textColor=RED,
+        )
+    )
     return base
 
 
@@ -279,7 +287,7 @@ def callout(title: str, body: list[str], bg=LIGHT, border=LINE, title_color=DARK
 
 
 def prod(text: str) -> Table:
-    table = Table([[Preformatted(text, S["CodeSmall"])]], colWidths=[CONTENT_W])
+    table = Table([[Preformatted(text, S["ProdCode"])]], colWidths=[CONTENT_W])
     table.setStyle(
         TableStyle(
             [
@@ -452,7 +460,7 @@ def story() -> list:
                 ["4", "Cómo se Materializa en Claudio", "9"],
                 ["5", "Pruebas desde la Interfaz Gráfica", "10"],
                 ["6", "Validación IA con OpenAI", "13"],
-                ["7", "Conclusiones", "13"],
+                ["7", "Conclusiones", "14"],
             ],
             [0.9 * inch, CONTENT_W - 1.6 * inch, 0.7 * inch],
         )
@@ -868,11 +876,37 @@ sufijo_id      -> ( argumentos ) | . ID sufijo_id | ε"""
         simple_table(
             [
                 ["Aspecto", "Descripción"],
+                ["Modalidad aplicada", "Modalidad A: validación del código generado. OpenAI revisa el Swift producido por la SDT."],
                 ["Momento de uso", "Después de léxico, sintáctico, semántico y SDT. Si hay errores, no se consulta la revisión de destino."],
                 ["Información revisada", "Código Claudio original y Swift sintetizado por las acciones de traducción."],
-                ["Criterios", "Sintaxis Swift razonable, bloques balanceados, operadores/literales traducidos y conservación de intención."],
+                ["Criterios", "Sintaxis Swift razonable, bloques balanceados, operadores/literales traducidos y conservación de la intención del usuario."],
                 ["Resultado en UI", "Resumen breve bajo el panel Swift, con estado visible de revisión."],
                 ["Límite conceptual", "La IA no reemplaza la gramática, la tabla de símbolos ni las reglas SEM."],
+            ],
+            [1.55 * inch, CONTENT_W - 1.55 * inch],
+        )
+    )
+    flow.append(Spacer(1, 7))
+    flow.append(
+        callout(
+            "Prompt utilizado",
+            [
+                "Revisar el código Swift generado a partir del programa Claudio. Indicar si el Swift parece sintáctica y semánticamente razonable para el lenguaje destino, si conserva la intención del usuario, si las estructuras están balanceadas y si existen problemas o sugerencias concretas de mejora.",
+            ],
+            bg=BLUE_BG,
+            border=BLUE,
+            title_color=BLUE,
+        )
+    )
+    flow.append(Spacer(1, 7))
+    flow.append(
+        simple_table(
+            [
+                ["Integración aplicada", "Comportamiento"],
+                ["Condición de llamada", "Solo se invoca OpenAI cuando el compilador ya generó Swift y no existen errores léxicos, sintácticos ni semánticos."],
+                ["Entrada enviada", "Programa Claudio original, código Swift generado y criterios de revisión del lenguaje destino."],
+                ["Respuesta esperada", "Estado de revisión, resumen, problemas detectados si existen y sugerencias de mejora."],
+                ["Fallo de IA", "Si la llamada no está disponible, Claudio conserva la salida Swift determinística y marca la revisión como no disponible."],
             ],
             [1.55 * inch, CONTENT_W - 1.55 * inch],
         )
@@ -898,7 +932,20 @@ sufijo_id      -> ( argumentos ) | . ID sufijo_id | ε"""
             max_h=1.45 * inch,
         )
     )
+    flow.append(Spacer(1, 7))
+    flow.append(
+        simple_table(
+            [
+                ["Ejemplo completo exigido", "Evidencia"],
+                ["Entrada fuente", "Caso de la galería: Final. Valido con Swift. Contiene función doble, constante LIMITE, acumulador, ciclo para, impresión y condición final."],
+                ["Salida del compilador", "Swift generado con func doble(_ n: Int) -> Int, let LIMITE: Int, for i in stride(...), print(valor) y if acumulado > 0."],
+                ["Respuesta IA", "La traducción a Swift es sintácticamente razonable, conserva la intención del programa Claudio y mantiene estructuras balanceadas."],
+            ],
+            [1.7 * inch, CONTENT_W - 1.7 * inch],
+        )
+    )
 
+    flow.append(PageBreak())
     flow.append(section_title("7", "Conclusiones"))
     flow.append(
         bullets(
