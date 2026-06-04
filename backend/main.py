@@ -418,7 +418,7 @@ def root():
 
 @app.get("/api/programas", response_model=ProgramasResponse)
 def obtener_programas():
-    """Retorna los 15 programas de ejemplo predefinidos."""
+    """Retorna programas de ejemplo curados para la galeria publica."""
     return ProgramasResponse(programas=PROGRAMAS)
 
 

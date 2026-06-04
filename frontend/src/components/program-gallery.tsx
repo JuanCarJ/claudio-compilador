@@ -18,25 +18,11 @@ const PROGRAM_TAGS: Record<string, { tags: string[]; complexity: "simple" | "med
   "5. Logica booleana": { tags: ["y", "o", "no"], complexity: "simple" },
   "6. Condicional simple": { tags: ["si", "entonces", "sino", "fin_si"], complexity: "simple" },
   "7. Condicional anidado": { tags: ["si", "sino", "anidado"], complexity: "medio" },
-  "8. Ciclo para (for)": { tags: ["para", "desde", "hasta", "paso"], complexity: "simple" },
-  "9. Ciclo mientras (while)": { tags: ["mientras", "hacer"], complexity: "simple" },
+  "8. Ciclo para": { tags: ["para", "desde", "hasta", "paso"], complexity: "simple" },
+  "9. Ciclo mientras": { tags: ["mientras", "hacer"], complexity: "simple" },
   "10. Romper y continuar": { tags: ["romper", "continuar", "mientras"], complexity: "medio" },
   "11. Funciones": { tags: ["funcion", "retornar", "parametros"], complexity: "medio" },
   "12. Factorial recursivo": { tags: ["funcion", "recursion", "si", "retornar"], complexity: "medio" },
-  "13. Clases y objetos": { tags: ["clase", "metodo", "atributo", "nuevo", "este"], complexity: "complejo" },
-  "14. Herencia": { tags: ["clase", "hereda", "metodo", "nuevo"], complexity: "complejo" },
-  "15. Programa completo": { tags: ["todo", "clase", "funcion", "si", "para", "mientras"], complexity: "complejo" },
-  "Quiz 3. Error: falta entonces": { tags: ["quiz3", "error", "si", "entonces"], complexity: "medio" },
-  "Quiz 3. Error: parentesis sin cerrar": { tags: ["quiz3", "error", "imprimir", ")"], complexity: "medio" },
-  "Quiz 3. Error: multiples fallos": { tags: ["quiz3", "error", "recuperacion", "ia"], complexity: "complejo" },
-  "Quiz 4. SEM-1 declaracion duplicada": { tags: ["quiz4", "sem-1", "duplicado", "tabla"], complexity: "simple" },
-  "Quiz 4. SEM-2 identificador no declarado": { tags: ["quiz4", "sem-2", "no declarado", "tabla"], complexity: "simple" },
-  "Quiz 4. SEM-3 constante reasignada": { tags: ["quiz4", "sem-3", "sea", "constante"], complexity: "simple" },
-  "Quiz 4. SEM-4 tipo incompatible en declaracion": { tags: ["quiz4", "sem-4", "tipo", "declaracion"], complexity: "simple" },
-  "Quiz 4. SEM-5 tipo incompatible en asignacion": { tags: ["quiz4", "sem-5", "tipo", "asignacion"], complexity: "simple" },
-  "Quiz 4. SEM-6 condicion no booleana": { tags: ["quiz4", "sem-6", "si", "mientras", "booleano"], complexity: "medio" },
-  "Quiz 4. SEM-7 limites no numericos en para": { tags: ["quiz4", "sem-7", "para", "numerico"], complexity: "medio" },
-  "Quiz 4. Todas las reglas semanticas": { tags: ["quiz4", "sem-1", "sem-7", "recuperacion"], complexity: "complejo" },
   "Quiz 4. Caso semantico valido": { tags: ["quiz4", "valido", "funcion", "tabla"], complexity: "medio" },
   "Final. Valido con Swift": { tags: ["final", "valido", "swift", "sdt"], complexity: "medio" },
   "Final. Error semantico sin Swift": { tags: ["final", "error", "semantico", "sin swift"], complexity: "medio" },
@@ -52,17 +38,12 @@ const COMPLEXITY_COLORS = {
 const VALID_QUICK_CASES = [
   { name: "Final. Valido con Swift", label: "Final", detail: "Genera Swift" },
   { name: "Quiz 4. Caso semantico valido", label: "Quiz 4", detail: "Semantico valido" },
-  { name: "15. Programa completo", label: "Completo", detail: "Todo el lenguaje" },
+  { name: "12. Factorial recursivo", label: "Recursion", detail: "Funcion valida" },
   { name: "11. Funciones", label: "Funciones", detail: "Retorno y parametros" },
 ];
 
 function isInvalidProgram(name: string) {
-  return (
-    name.startsWith("Quiz 3. Error") ||
-    name.startsWith("Final. Error") ||
-    /^Quiz 4\. SEM-\d/.test(name) ||
-    name === "Quiz 4. Todas las reglas semanticas"
-  );
+  return name.startsWith("Final. Error");
 }
 
 function numberedProgramIndex(name: string) {

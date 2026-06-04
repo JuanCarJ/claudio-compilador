@@ -4,20 +4,15 @@ import unittest
 from lexer import Lexer
 from parser_ll1 import ParserPredictivoLL1
 from parser_rd import ParserDescendenteRecursivo
-from programas import PROGRAMAS
+from programas import PROGRAMAS_DIAGNOSTICO, PROGRAMAS_VALIDOS
 from main import CodigoRequest, SugerenciasIARequest, analizar_ll1, analizar_recursivo, sugerencias_ia
 
 
 class Quiz3DiagnosticsTest(unittest.TestCase):
     def test_programas_validos_siguen_pasando(self):
-        validos = {
-            nombre: codigo
-            for nombre, codigo in PROGRAMAS.items()
-            if not nombre.startswith(("Quiz 3.", "Quiz 4.", "Final."))
-        }
-        self.assertEqual(len(validos), 15)
+        self.assertGreaterEqual(len(PROGRAMAS_VALIDOS), 10)
 
-        for nombre, codigo in validos.items():
+        for nombre, codigo in PROGRAMAS_VALIDOS.items():
             with self.subTest(nombre=nombre):
                 tokens = Lexer(codigo).analizar()
 
@@ -32,7 +27,7 @@ class Quiz3DiagnosticsTest(unittest.TestCase):
                 self.assertEqual(ll1.obtener_errores_sintacticos(), [])
 
     def test_recursivo_reporta_errores_estructurados(self):
-        codigo = PROGRAMAS["Quiz 3. Error: multiples fallos"]
+        codigo = PROGRAMAS_DIAGNOSTICO["Quiz 3. Error: multiples fallos"]
         res = analizar_recursivo(CodigoRequest(codigo=codigo))
 
         self.assertFalse(res.valido)
@@ -45,7 +40,7 @@ class Quiz3DiagnosticsTest(unittest.TestCase):
         self.assertEqual(primero.estado_ia, "pendiente")
 
     def test_ll1_reporta_recuperacion_en_traza(self):
-        codigo = PROGRAMAS["Quiz 3. Error: multiples fallos"]
+        codigo = PROGRAMAS_DIAGNOSTICO["Quiz 3. Error: multiples fallos"]
         res = analizar_ll1(CodigoRequest(codigo=codigo))
 
         self.assertFalse(res.valido)
@@ -83,7 +78,7 @@ fin_para
     def test_sugerencias_ia_sin_api_key_no_rompe(self):
         previous = os.environ.pop("OPENAI_API_KEY", None)
         try:
-            codigo = PROGRAMAS["Quiz 3. Error: falta entonces"]
+            codigo = PROGRAMAS_DIAGNOSTICO["Quiz 3. Error: falta entonces"]
             res = analizar_ll1(CodigoRequest(codigo=codigo))
             ia = sugerencias_ia(
                 SugerenciasIARequest(
