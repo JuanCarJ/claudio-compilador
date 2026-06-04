@@ -38,6 +38,9 @@ const PROGRAM_TAGS: Record<string, { tags: string[]; complexity: "simple" | "med
   "Quiz 4. SEM-7 limites no numericos en para": { tags: ["quiz4", "sem-7", "para", "numerico"], complexity: "medio" },
   "Quiz 4. Todas las reglas semanticas": { tags: ["quiz4", "sem-1", "sem-7", "recuperacion"], complexity: "complejo" },
   "Quiz 4. Caso semantico valido": { tags: ["quiz4", "valido", "funcion", "tabla"], complexity: "medio" },
+  "Final. Valido con Swift": { tags: ["final", "valido", "swift", "sdt"], complexity: "medio" },
+  "Final. Error semantico sin Swift": { tags: ["final", "error", "semantico", "sin swift"], complexity: "medio" },
+  "Final. Error lexico/sintactico sin Swift": { tags: ["final", "error", "lexico", "sintactico"], complexity: "medio" },
 };
 
 const COMPLEXITY_COLORS = {
@@ -46,29 +49,45 @@ const COMPLEXITY_COLORS = {
   complejo: "var(--color-error)",
 };
 
-const QUIZ4_QUICK_CASES = [
-  { name: "Quiz 4. SEM-1 declaracion duplicada", label: "SEM-1", detail: "Duplicado" },
-  { name: "Quiz 4. SEM-2 identificador no declarado", label: "SEM-2", detail: "No declarado" },
-  { name: "Quiz 4. SEM-3 constante reasignada", label: "SEM-3", detail: "Constante" },
-  { name: "Quiz 4. SEM-4 tipo incompatible en declaracion", label: "SEM-4", detail: "Tipo en declaracion" },
-  { name: "Quiz 4. SEM-5 tipo incompatible en asignacion", label: "SEM-5", detail: "Tipo en asignacion" },
-  { name: "Quiz 4. SEM-6 condicion no booleana", label: "SEM-6", detail: "Condicion" },
-  { name: "Quiz 4. SEM-7 limites no numericos en para", label: "SEM-7", detail: "Para numerico" },
-  { name: "Quiz 4. Caso semantico valido", label: "Valido", detail: "Sin errores" },
+const VALID_QUICK_CASES = [
+  { name: "Final. Valido con Swift", label: "Final", detail: "Genera Swift" },
+  { name: "Quiz 4. Caso semantico valido", label: "Quiz 4", detail: "Semantico valido" },
+  { name: "15. Programa completo", label: "Completo", detail: "Todo el lenguaje" },
+  { name: "11. Funciones", label: "Funciones", detail: "Retorno y parametros" },
 ];
 
+function isInvalidProgram(name: string) {
+  return (
+    name.startsWith("Quiz 3. Error") ||
+    name.startsWith("Final. Error") ||
+    /^Quiz 4\. SEM-\d/.test(name) ||
+    name === "Quiz 4. Todas las reglas semanticas"
+  );
+}
+
+function numberedProgramIndex(name: string) {
+  const match = name.match(/^(\d+)\./);
+  return match ? Number(match[1]) : null;
+}
+
 function programSortKey(name: string) {
-  const quickIndex = QUIZ4_QUICK_CASES.findIndex((item) => item.name === name);
+  if (isInvalidProgram(name)) return 1000;
+
+  const quickIndex = VALID_QUICK_CASES.findIndex((item) => item.name === name);
   if (quickIndex >= 0) return quickIndex;
-  if (name.startsWith("Quiz 4.")) return 20;
-  if (name.startsWith("Quiz 3.")) return 40;
-  return 60;
+
+  const numberedIndex = numberedProgramIndex(name);
+  if (numberedIndex !== null) return 20 + numberedIndex;
+
+  if (name.startsWith("Quiz 4.")) return 100;
+  if (name.startsWith("Final.")) return 110;
+  return 200;
 }
 
 export function ProgramGallery({ programas, onSelect, onClose }: ProgramGalleryProps) {
   const [search, setSearch] = useState("");
 
-  const quiz4QuickCases = QUIZ4_QUICK_CASES.filter((item) => programas[item.name]);
+  const validQuickCases = VALID_QUICK_CASES.filter((item) => programas[item.name]);
   const entries = Object.entries(programas)
     .filter(([name]) => {
       if (!search.trim()) return true;
@@ -105,7 +124,7 @@ export function ProgramGallery({ programas, onSelect, onClose }: ProgramGalleryP
               Programas de Ejemplo
             </h2>
             <p className="text-[0.7rem]" style={{ color: "var(--color-muted)" }}>
-              Quiz 4 uno por uno, casos Quiz 3 y programas validos
+              Programas correctos primero; fallas y recuperacion al final
             </p>
           </div>
           <button
@@ -117,25 +136,25 @@ export function ProgramGallery({ programas, onSelect, onClose }: ProgramGalleryP
           </button>
         </div>
 
-        {quiz4QuickCases.length > 0 && (
+        {validQuickCases.length > 0 && (
           <div className="shrink-0 px-4 py-3" style={{ borderBottom: "1px solid var(--color-border)" }}>
             <div className="mb-2 flex items-center justify-between gap-2">
               <span className="text-xs font-semibold" style={{ color: "var(--color-text)" }}>
-                Quiz 4: seleccionar regla individual
+                Casos correctos destacados
               </span>
               <span className="text-[0.6rem] uppercase tracking-wide" style={{ color: "var(--color-muted)" }}>
-                demo 1 por 1
+                empezar por aqui
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {quiz4QuickCases.map((item) => (
+              {validQuickCases.map((item) => (
                 <button
                   key={item.name}
                   onClick={() => { onSelect(item.name); onClose(); }}
                   className="rounded-md px-2 py-2 text-left transition-colors"
                   style={{
-                    backgroundColor: item.label === "Valido" ? "rgba(166,227,161,.08)" : "rgba(243,139,168,.07)",
-                    border: item.label === "Valido" ? "1px solid rgba(166,227,161,.3)" : "1px solid rgba(243,139,168,.28)",
+                    backgroundColor: "rgba(166,227,161,.08)",
+                    border: "1px solid rgba(166,227,161,.3)",
                   }}
                 >
                   <span className="block text-xs font-bold" style={{ color: "var(--color-text)" }}>
@@ -180,7 +199,7 @@ export function ProgramGallery({ programas, onSelect, onClose }: ProgramGalleryP
               const lineCount = code.split("\n").length;
               const isQuiz3Demo = name.startsWith("Quiz 3.");
               const isQuiz4Demo = name.startsWith("Quiz 4.");
-              const isInvalidDemo = isQuiz3Demo || (isQuiz4Demo && !name.includes("valido"));
+              const isInvalidDemo = isInvalidProgram(name);
               return (
                 <button
                   key={name}
