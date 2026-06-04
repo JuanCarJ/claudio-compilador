@@ -889,6 +889,15 @@ sufijo_id      -> ( argumentos ) | . ID sufijo_id | ε"""
             title_color=GREEN,
         )
     )
+    flow.append(Spacer(1, 7))
+    flow.append(p("Evidencia de la revisión IA en la interfaz", "H2x"))
+    flow.append(
+        screenshot(
+            EVIDENCE_DIR / "04_claudio_validacion_ia_swift.png",
+            "Panel Validación IA Swift: OpenAI revisa el código destino generado y resume si conserva la intención del programa Claudio.",
+            max_h=1.45 * inch,
+        )
+    )
 
     flow.append(section_title("7", "Conclusiones"))
     flow.append(
