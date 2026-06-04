@@ -1,0 +1,9 @@
+// Entrega final: errores semanticos, no debe generar Swift
+sea entero limite = 3
+limite = 7
+
+var entero total = "mucho"
+
+si total entonces
+    imprimir(total)
+fin_si

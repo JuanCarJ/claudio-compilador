@@ -6,12 +6,14 @@ Incluye Entrega 3 / Quiz 3: recuperacion de errores sintacticos con reporte deta
 
 Incluye Entrega 4 / Quiz 4: analisis semantico con tabla de simbolos, 7 reglas semanticas clasicas y sugerencias complementarias con OpenAI.
 
+Incluye Entrega Final: pipeline completo `lexico -> sintactico -> semantico -> SDT Swift`, visualizacion mejorada del lenguaje destino, errores unificados y validacion IA opcional sobre el Swift generado.
+
 ## Estructura
 
 ```
 new_version/
 ├── backend/          # FastAPI — lexer, parsers, traductor
-│   ├── main.py       # API (5 endpoints)
+│   ├── main.py       # API de fases + compilacion final
 │   ├── lexer.py      # Analizador lexico
 │   ├── parser_rd.py  # Parser descendente recursivo
 │   ├── parser_ll1.py # Parser predictivo LL(1)
@@ -28,6 +30,7 @@ new_version/
 │   ├── Dockerfile
 │   └── package.json
 ├── docker-compose.yml
+├── tests/final/      # 3 casos obligatorios de la entrega final
 └── README.md
 ```
 
@@ -90,6 +93,7 @@ npm start
 | POST | `/api/ll1` | Parser predictivo LL(1) |
 | POST | `/api/semantico` | Analisis semantico con tabla de simbolos |
 | POST | `/api/traducir` | Traduccion Claudio → Swift |
+| POST | `/api/compilar` | Entrega final: lexico → sintactico → semantico → Swift + IA opcional |
 | POST | `/api/sugerencias-ia` | Sugerencias IA en lote para errores sintacticos |
 | POST | `/api/sugerencias-ia-semantico` | Sugerencias IA para errores semanticos |
 
@@ -178,12 +182,51 @@ Documento entregable:
 - `docs/quiz4/gramatica_semantica_quiz4.html`
 - `docs/quiz4/gramatica_semantica_quiz4.pdf` si fue generado localmente con Chrome headless.
 
+## Entrega Final — SDT Claudio → Swift
+
+El endpoint `/api/compilar` ejecuta el flujo completo:
+
+```text
+Lexico -> Sintactico RD -> Semantico -> SDT Swift -> Validacion IA opcional
+```
+
+Reglas de salida:
+
+- si hay errores lexicos, no se genera Swift
+- si hay errores sintacticos, no se genera Swift
+- si hay errores semanticos, no se genera Swift
+- si el programa es valido, la respuesta incluye `swift`, `mapeo`, `tabla_simbolos` y `validacion_ia`
+
+Cada error final queda normalizado como:
+
+```json
+{
+  "fase": "lexico | sintactico | semantico",
+  "fila": 1,
+  "columna": 1,
+  "lexema": "...",
+  "mensaje": "...",
+  "regla": "SEM-1"
+}
+```
+
+Archivos de prueba de la entrega final:
+
+- `tests/final/caso_valido.claudio`
+- `tests/final/caso_semantico.claudio`
+- `tests/final/caso_lexico_sintactico.claudio`
+
+Documento PDF generado:
+
+- `docs/final/entrega_final_claudio_swift.pdf`
+- copia local de entrega: `/Users/juancarj/Downloads/Entrega Final Claudio.pdf`
+
 ## Pruebas
 
 ```bash
 cd backend
 python3 -m py_compile diagnostics.py ai_suggestions.py lexer.py parser_rd.py parser_ll1.py semantico.py main.py
-python3 -m unittest test_quiz3.py test_quiz3_diagnostic_cases.py test_quiz4_semantico.py
+python3 -m unittest test_quiz3.py test_quiz3_diagnostic_cases.py test_quiz4_semantico.py test_entrega_final.py
 
 cd ../frontend
 npm run lint

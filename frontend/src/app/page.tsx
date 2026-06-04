@@ -9,8 +9,7 @@ import {
   fetchProgramas,
   analizarRecursivo,
   analizarLL1,
-  analizarSemantico,
-  traducirSwift,
+  compilarFinal,
   generarSugerenciasIA,
   generarSugerenciasIASemantico,
   type LexicoResponse,
@@ -18,6 +17,7 @@ import {
   type LL1Response,
   type SemanticoResponse,
   type TraducirResponse,
+  type CompilarResponse,
   type SyntaxDiagnostic,
   type SemanticDiagnostic,
   type AISuggestion,
@@ -131,6 +131,7 @@ function HomeContent() {
   const [ll1, setLL1] = useState<LL1Response | null>(null);
   const [semantico, setSemantico] = useState<SemanticoResponse | null>(null);
   const [traduccion, setTraduccion] = useState<TraducirResponse | null>(null);
+  const [compilacionFinal, setCompilacionFinal] = useState<CompilarResponse | null>(null);
   const [syntaxErrors, setSyntaxErrors] = useState<string[]>([]);
   const [errorLines, setErrorLines] = useState<number[]>([]);
   const analysisRunId = useRef(0);
@@ -203,6 +204,7 @@ function HomeContent() {
     setLL1(null);
     setSemantico(null);
     setTraduccion(null);
+    setCompilacionFinal(null);
     setActiveTab(METHOD_TAB[method]);
 
     try {
@@ -213,11 +215,11 @@ function HomeContent() {
           setRecursivo(res);
           if (res.lexico) setLexico(res.lexico);
           setActiveTab("tokens");
-          /* Also attempt translation */
-          traducirSwift(code)
-            .then((swift) => {
+          compilarFinal(code)
+            .then((final) => {
               if (analysisRunId.current === runId) {
-                setTraduccion(swift);
+                setCompilacionFinal(final);
+                setTraduccion({ swift: final.swift, mapeo: final.mapeo });
               }
             })
             .catch(() => {});
@@ -269,10 +271,11 @@ function HomeContent() {
           if (res.lexico) setLexico(res.lexico);
           setSyntaxErrors([]);
           setActiveTab("arbol");
-          traducirSwift(code)
-            .then((swift) => {
+          compilarFinal(code)
+            .then((final) => {
               if (analysisRunId.current === runId) {
-                setTraduccion(swift);
+                setCompilacionFinal(final);
+                setTraduccion({ swift: final.swift, mapeo: final.mapeo });
               }
             })
             .catch(() => {});
@@ -322,10 +325,11 @@ function HomeContent() {
           setLL1(res);
           if (res.lexico) setLexico(res.lexico);
           setActiveTab("traza");
-          traducirSwift(code)
-            .then((swift) => {
+          compilarFinal(code)
+            .then((final) => {
               if (analysisRunId.current === runId) {
-                setTraduccion(swift);
+                setCompilacionFinal(final);
+                setTraduccion({ swift: final.swift, mapeo: final.mapeo });
               }
             })
             .catch(() => {});
@@ -370,30 +374,27 @@ function HomeContent() {
           break;
         }
         case "semantico": {
-          const res = await analizarSemantico(code);
+          const res = await compilarFinal(code);
           if (analysisRunId.current !== runId) return;
-          setSemantico(res);
-          if (res.lexico) setLexico(res.lexico);
-          setActiveTab("simbolos");
-          traducirSwift(code)
-            .then((swift) => {
-              if (analysisRunId.current === runId) {
-                setTraduccion(swift);
-              }
-            })
-            .catch(() => {});
+          setCompilacionFinal(res);
+          setLexico(res.lexico);
+          setRecursivo(res.sintactico);
+          setSemantico(res.semantico);
+          setTraduccion({ swift: res.swift, mapeo: res.mapeo });
+          setActiveTab(res.valido ? "swift" : "simbolos");
           const lines = [
             ...(res.lexico?.errores?.map((e) => e.fila) ?? []),
-            ...semanticLines(res.errores_semanticos),
+            ...syntaxLines(res.sintactico.errores_sintacticos),
+            ...semanticLines(res.semantico.errores_semanticos),
           ];
           if (lines.length) {
             setErrorLines(lines);
           }
-          if (res.lexico?.errores?.length || res.errores_semanticos?.length) {
+          if (res.total_errores > 0) {
             setActiveTab("errores");
           }
-          if (res.errores_semanticos?.length) {
-            generarSugerenciasIASemantico(code, res.errores_semanticos)
+          if (res.semantico.errores_semanticos?.length) {
+            generarSugerenciasIASemantico(code, res.semantico.errores_semanticos)
               .then((ia) => {
                 if (analysisRunId.current !== runId) return;
                 setSemantico((prev) =>
@@ -497,7 +498,7 @@ function HomeContent() {
       >
         {/* Compiler pipeline indicator */}
         {["Codigo", "Lexico", "Sintactico", "Semantico", "Swift"].map((fase, i) => {
-          const faseActiva = method === "lexico" ? 1 : method === "semantico" ? 3 : 2;
+          const faseActiva = traduccion?.swift ? 4 : method === "lexico" ? 1 : method === "semantico" ? 3 : 2;
           const completada = i <= faseActiva;
           const actual = i === faseActiva;
           return (
@@ -624,6 +625,7 @@ function HomeContent() {
             ll1={ll1}
             semantico={semantico}
             traduccion={traduccion}
+            compilacionFinal={compilacionFinal}
             claudioCode={code}
             syntaxErrors={syntaxErrors}
             onClickError={handleClickError}

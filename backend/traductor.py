@@ -33,6 +33,13 @@ TIPOS_SWIFT = {
     'booleano': 'Bool',
 }
 
+VALORES_DEFECTO_SWIFT = {
+    'Int':    '0',
+    'Double': '0.0',
+    'String': '""',
+    'Bool':   'false',
+}
+
 LITERALES_SWIFT = {
     'verdadero': 'true',
     'falso':     'false',
@@ -98,6 +105,9 @@ def _traducir_linea(linea: str) -> str:
     if m:
         tipo_cl, nombre = m.group(1), m.group(2)
         tipo_sw = TIPOS_SWIFT.get(tipo_cl, tipo_cl)
+        default = VALORES_DEFECTO_SWIFT.get(tipo_sw)
+        if default is not None:
+            return f'{indent}var {nombre}: {tipo_sw} = {default}'
         return f'{indent}var {nombre}: {tipo_sw}'
 
     # ── Declaración sea (let) con tipo ──
@@ -193,6 +203,9 @@ def _traducir_linea(linea: str) -> str:
     if m:
         tipo_cl, nombre = m.group(1), m.group(2)
         tipo_sw = TIPOS_SWIFT.get(tipo_cl, tipo_cl)
+        default = VALORES_DEFECTO_SWIFT.get(tipo_sw)
+        if default is not None:
+            return f'{indent}var {nombre}: {tipo_sw} = {default}'
         return f'{indent}var {nombre}: {tipo_sw}'
 
     # ── Método ──

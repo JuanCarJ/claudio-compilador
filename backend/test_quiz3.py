@@ -13,7 +13,7 @@ class Quiz3DiagnosticsTest(unittest.TestCase):
         validos = {
             nombre: codigo
             for nombre, codigo in PROGRAMAS.items()
-            if not nombre.startswith("Quiz 3.")
+            if not nombre.startswith(("Quiz 3.", "Quiz 4.", "Final."))
         }
         self.assertEqual(len(validos), 15)
 

@@ -13,6 +13,7 @@ import type {
   RecursivoResponse,
   LL1Response,
   TraducirResponse,
+  CompilarResponse,
   SyntaxDiagnostic,
   SemanticoResponse,
   SemanticDiagnostic,
@@ -30,6 +31,7 @@ interface ResultsPanelProps {
   ll1: LL1Response | null;
   semantico: SemanticoResponse | null;
   traduccion: TraducirResponse | null;
+  compilacionFinal: CompilarResponse | null;
   claudioCode: string;
   syntaxErrors: string[];
   onClickError?: (fila: number, columna: number) => void;
@@ -73,6 +75,7 @@ export function ResultsPanel({
   ll1,
   semantico,
   traduccion,
+  compilacionFinal,
   claudioCode,
   syntaxErrors,
   onClickError,
@@ -96,7 +99,7 @@ export function ResultsPanel({
   const syntaxDiagnostics: SyntaxDiagnostic[] =
     method === "ll1"
       ? ll1?.errores_sintacticos ?? []
-      : method === "recursivo" || method === "lexico"
+      : method === "recursivo" || method === "lexico" || method === "semantico"
       ? recursivo?.errores_sintacticos ?? []
       : [];
 
@@ -229,6 +232,10 @@ export function ResultsPanel({
             claudioCode={claudioCode}
             swiftCode={traduccion?.swift ?? ""}
             mapeo={traduccion?.mapeo ?? []}
+            finalValido={compilacionFinal?.valido}
+            erroresFinales={compilacionFinal?.errores ?? []}
+            validacionIA={compilacionFinal?.validacion_ia ?? null}
+            tablaSimbolosCount={compilacionFinal?.tabla_simbolos?.length ?? semantico?.tabla_simbolos?.length ?? 0}
           />
         )}
         {activeTab === "errores" && (

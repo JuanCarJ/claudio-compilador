@@ -120,6 +120,38 @@ export interface TraducirResponse {
   mapeo: MapeoLinea[];
 }
 
+export interface FinalDiagnostic {
+  fase: "lexico" | "sintactico" | "semantico" | string;
+  fila: number;
+  columna: number;
+  lexema: string;
+  mensaje: string;
+  regla: string | null;
+  esperado: string | null;
+  sugerencia: string | null;
+}
+
+export interface SwiftAIValidation {
+  estado_ia: "omitida" | "no_disponible" | "lista" | "error" | string;
+  valido: boolean | null;
+  resumen: string;
+  problemas: string[];
+  sugerencias: string[];
+}
+
+export interface CompilarResponse {
+  valido: boolean;
+  swift: string;
+  mapeo: MapeoLinea[];
+  errores: FinalDiagnostic[];
+  total_errores: number;
+  tabla_simbolos: SemanticSimboloEntry[];
+  lexico: LexicoResponse;
+  sintactico: RecursivoResponse;
+  semantico: SemanticoResponse;
+  validacion_ia: SwiftAIValidation;
+}
+
 export interface ProgramasResponse {
   programas: Record<string, string>;
 }
@@ -194,6 +226,10 @@ export function analizarSemantico(codigo: string) {
 
 export function traducirSwift(codigo: string) {
   return post<TraducirResponse>("/traducir", codigo);
+}
+
+export function compilarFinal(codigo: string) {
+  return post<CompilarResponse>("/compilar", codigo);
 }
 
 export function generarSugerenciasIA(codigo: string, diagnosticos: SyntaxDiagnostic[]) {

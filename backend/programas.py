@@ -457,4 +457,41 @@ total = 20
 si total > 0 entonces
     imprimir(total)
 fin_si""",
+
+    "Final. Valido con Swift": """// Entrega final: debe pasar lexico, sintactico y semantico, y generar Swift
+funcion entero doble(entero n) hacer
+    retornar n * 2
+fin_funcion
+
+sea entero LIMITE = 4
+var entero acumulado = 0
+
+para i desde 1 hasta LIMITE paso 1 hacer
+    var entero valor = doble(i)
+    acumulado = acumulado + valor
+    imprimir(valor)
+fin_para
+
+si acumulado > 0 entonces
+    imprimir(acumulado)
+fin_si""",
+
+    "Final. Error semantico sin Swift": """// Entrega final: la sintaxis es correcta, pero la semantica bloquea Swift
+sea entero limite = 3
+limite = 7
+
+var entero total = "mucho"
+
+si total entonces
+    imprimir(total)
+fin_si""",
+
+    "Final. Error lexico/sintactico sin Swift": """// Entrega final: errores tempranos, no debe generarse Swift
+var entero x = 10
+
+si x > 5
+    imprimir("Mayor"
+fin_si
+
+imprimir(@)""",
 }

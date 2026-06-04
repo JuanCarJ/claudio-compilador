@@ -20,7 +20,11 @@ from parser_ll1 import ParserPredictivoLL1
 from arbol import contar_nodos, profundidad_arbol
 from traductor import traducir_claudio_a_swift, obtener_mapeo_linea_a_linea
 from programas import PROGRAMAS
-from ai_suggestions import generar_sugerencias_ia, generar_sugerencias_ia_semantico
+from ai_suggestions import (
+    generar_sugerencias_ia,
+    generar_sugerencias_ia_semantico,
+    generar_validacion_swift_ia,
+)
 from semantico import AnalizadorSemantico
 
 app = FastAPI(
@@ -192,6 +196,38 @@ class SugerenciasIASemanticoRequest(BaseModel):
     diagnosticos: list[dict]
 
 
+class ErrorFinalResponse(BaseModel):
+    fase: str
+    fila: int
+    columna: int
+    lexema: str
+    mensaje: str
+    regla: Optional[str] = None
+    esperado: Optional[str] = None
+    sugerencia: Optional[str] = None
+
+
+class ValidacionSwiftIAResponse(BaseModel):
+    estado_ia: str
+    valido: Optional[bool] = None
+    resumen: str = ""
+    problemas: list[str] = []
+    sugerencias: list[str] = []
+
+
+class CompilacionFinalResponse(BaseModel):
+    valido: bool
+    swift: str
+    mapeo: list[dict[str, str]]
+    errores: list[ErrorFinalResponse]
+    total_errores: int
+    tabla_simbolos: list[EntradaSimboloResponse]
+    lexico: AnalisisLexicoResponse
+    sintactico: AnalisisRecursivoResponse
+    semantico: AnalisisSemanticoResponse
+    validacion_ia: ValidacionSwiftIAResponse
+
+
 # ─────────────────────────────────────────────
 # § 2  HELPERS
 # ─────────────────────────────────────────────
@@ -306,6 +342,56 @@ def _errores_lexicos_legacy(errores_lex) -> list[str]:
     ]
 
 
+def _error_final_lexico(error: ErrorLexicoResponse) -> ErrorFinalResponse:
+    return ErrorFinalResponse(
+        fase="lexico",
+        fila=error.fila,
+        columna=error.columna,
+        lexema=error.lexema,
+        mensaje=error.mensaje,
+        esperado=error.esperado,
+        sugerencia=error.sugerencia_deterministica,
+    )
+
+
+def _error_final_sintactico(error: ErrorSintacticoResponse) -> ErrorFinalResponse:
+    esperados = ", ".join(error.esperados)
+    return ErrorFinalResponse(
+        fase="sintactico",
+        fila=error.fila,
+        columna=error.columna,
+        lexema=error.lexema_encontrado,
+        mensaje=(
+            f"Token inesperado '{error.lexema_encontrado}' en {error.contexto}. "
+            f"Esperado: {esperados or 'un simbolo valido de la gramatica'}."
+        ),
+        esperado=esperados,
+        sugerencia=error.sugerencia_deterministica,
+    )
+
+
+def _error_final_semantico(error: ErrorSemanticoResponse) -> ErrorFinalResponse:
+    return ErrorFinalResponse(
+        fase="semantico",
+        fila=error.fila,
+        columna=error.columna,
+        lexema=error.lexema,
+        mensaje=error.mensaje,
+        regla=error.regla,
+        sugerencia=error.sugerencia,
+    )
+
+
+def _validacion_ia_omitida(motivo: str) -> ValidacionSwiftIAResponse:
+    return ValidacionSwiftIAResponse(
+        estado_ia="omitida",
+        valido=None,
+        resumen=motivo,
+        problemas=[],
+        sugerencias=[],
+    )
+
+
 # ─────────────────────────────────────────────
 # § 3  ENDPOINTS
 # ─────────────────────────────────────────────
@@ -322,6 +408,7 @@ def root():
             "POST /api/ll1",
             "POST /api/semantico",
             "POST /api/traducir",
+            "POST /api/compilar",
             "POST /api/sugerencias-ia",
             "POST /api/sugerencias-ia-semantico",
             "GET  /api/programas",
@@ -469,6 +556,95 @@ def analizar_semantico(req: CodigoRequest):
         tabla_simbolos=tabla_resp,
         arbol_parcial=arbol.to_dict(),
         lexico=lexico,
+    )
+
+
+@app.post("/api/compilar", response_model=CompilacionFinalResponse)
+def compilar(req: CodigoRequest):
+    """
+    Ejecuta la entrega final completa:
+
+    Lexico -> Sintactico RD -> Semantico -> SDT/Swift -> Validacion IA opcional.
+
+    Si cualquier fase deterministica falla, no se genera salida Swift.
+    """
+    tokens, errores_lex, lexico = _analizar_lexico(req.codigo)
+
+    parser = ParserDescendenteRecursivo(tokens)
+    arbol, aceptado = parser.analizar_con_recuperacion()
+    sintacticos_raw = parser.obtener_errores_sintacticos()
+    sintacticos_resp = _serializar_diagnosticos(sintacticos_raw)
+    errores_legacy = _errores_lexicos_legacy(errores_lex) + [
+        d.mensaje_legacy() for d in sintacticos_raw
+    ]
+    sintactico_valido = aceptado and not errores_lex and not sintacticos_raw
+
+    sintactico_resp = AnalisisRecursivoResponse(
+        valido=sintactico_valido,
+        arbol=arbol.to_dict() if sintactico_valido else None,
+        arbol_parcial=arbol.to_dict(),
+        total_nodos=contar_nodos(arbol) if sintactico_valido else 0,
+        profundidad=profundidad_arbol(arbol) if sintactico_valido else 0,
+        errores=errores_legacy,
+        errores_sintacticos=sintacticos_resp,
+        total_errores_sintacticos=len(sintacticos_resp),
+        lexico=lexico,
+    )
+
+    errores_finales: list[ErrorFinalResponse] = [
+        _error_final_lexico(error) for error in lexico.errores
+    ] + [
+        _error_final_sintactico(error) for error in sintacticos_resp
+    ]
+
+    errores_sem_resp: list[ErrorSemanticoResponse] = []
+    tabla_resp: list[EntradaSimboloResponse] = []
+    semantico_valido = False
+
+    if sintactico_valido:
+        analizador = AnalizadorSemantico()
+        errores_sem, tabla = analizador.analizar(arbol)
+        errores_sem_resp = [ErrorSemanticoResponse(**e.to_dict()) for e in errores_sem]
+        tabla_resp = [EntradaSimboloResponse(**s) for s in tabla.como_lista()]
+        errores_finales.extend(_error_final_semantico(error) for error in errores_sem_resp)
+        semantico_valido = not errores_sem_resp
+
+    semantico_resp = AnalisisSemanticoResponse(
+        valido=semantico_valido,
+        errores_semanticos=errores_sem_resp,
+        total_errores_semanticos=len(errores_sem_resp),
+        tabla_simbolos=tabla_resp,
+        arbol_parcial=arbol.to_dict(),
+        lexico=lexico,
+    )
+
+    swift = ""
+    mapeo: list[dict[str, str]] = []
+    validacion_ia = _validacion_ia_omitida(
+        "La validacion IA del Swift se ejecuta solo cuando no hay errores lexicos, sintacticos ni semanticos."
+    )
+
+    if sintactico_valido and semantico_valido:
+        swift = traducir_claudio_a_swift(req.codigo)
+        mapeo = [
+            {"claudio": cl, "swift": sw}
+            for cl, sw in obtener_mapeo_linea_a_linea(req.codigo)
+        ]
+        validacion_ia = ValidacionSwiftIAResponse(
+            **generar_validacion_swift_ia(req.codigo, swift)
+        )
+
+    return CompilacionFinalResponse(
+        valido=sintactico_valido and semantico_valido,
+        swift=swift,
+        mapeo=mapeo,
+        errores=errores_finales,
+        total_errores=len(errores_finales),
+        tabla_simbolos=tabla_resp,
+        lexico=lexico,
+        sintactico=sintactico_resp,
+        semantico=semantico_resp,
+        validacion_ia=validacion_ia,
     )
 
 

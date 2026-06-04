@@ -1,0 +1,8 @@
+// Entrega final: errores lexicos/sintacticos, no debe generar Swift
+var entero x = 10
+
+si x > 5
+    imprimir("Mayor"
+fin_si
+
+imprimir(@)

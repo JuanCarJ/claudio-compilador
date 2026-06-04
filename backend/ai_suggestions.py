@@ -33,6 +33,13 @@ class RespuestaSugerenciasIASemantica(BaseModel):
     sugerencias: list[SugerenciaIA]
 
 
+class RespuestaValidacionSwiftIA(BaseModel):
+    valido: bool
+    resumen: str
+    problemas: list[str] = []
+    sugerencias: list[str] = []
+
+
 def _sugerencias_estado(
     diagnosticos: list[dict[str, Any]],
     estado: str,
@@ -224,3 +231,88 @@ def generar_sugerencias_ia_semantico(
             "error",
             f"No fue posible generar la sugerencia IA semantica: {exc}",
         )
+
+
+def generar_validacion_swift_ia(codigo_claudio: str, codigo_swift: str) -> dict[str, Any]:
+    """
+    Bonus IA de la entrega final.
+
+    Valida el codigo Swift generado a partir de un programa Claudio ya aceptado
+    por las fases lexica, sintactica y semantica. La respuesta es solo
+    complementaria: si OpenAI no esta disponible, el compilador conserva la
+    salida deterministica.
+    """
+    if not codigo_swift.strip():
+        return {
+            "estado_ia": "omitida",
+            "valido": None,
+            "resumen": "La validacion IA se omite porque no hay codigo Swift generado.",
+            "problemas": [],
+            "sugerencias": [],
+        }
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return {
+            "estado_ia": "no_disponible",
+            "valido": None,
+            "resumen": "Configura OPENAI_API_KEY en el backend para activar la validacion IA del Swift generado.",
+            "problemas": [],
+            "sugerencias": [],
+        }
+
+    try:
+        from openai import OpenAI
+    except Exception:
+        return {
+            "estado_ia": "error",
+            "valido": None,
+            "resumen": "La dependencia openai no esta instalada en el backend.",
+            "problemas": [],
+            "sugerencias": [],
+        }
+
+    timeout = float(os.getenv("OPENAI_TIMEOUT_SECONDS", "8"))
+    model = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
+    system_prompt = (
+        "Eres un revisor de codigo Swift para una entrega de compiladores. "
+        "Evalua si el codigo Swift generado es sintacticamente razonable, "
+        "mantiene la intencion del programa Claudio y no contradice las fases "
+        "deterministicas del compilador. No inventes errores del lenguaje fuente; "
+        "solo revisa la salida destino. Responde breve y en espanol."
+    )
+    user_payload = {
+        "lenguaje_fuente": "Claudio",
+        "lenguaje_destino": "Swift",
+        "codigo_claudio": codigo_claudio[:1800],
+        "codigo_swift": codigo_swift[:2400],
+        "criterios": [
+            "La salida debe parecer Swift valido.",
+            "Las estructuras si/mientras/para deben estar balanceadas con llaves.",
+            "Los literales booleanos y operadores logicos deben estar en sintaxis Swift.",
+            "No debe recomendar cambios al programa fuente si la traduccion ya es coherente.",
+        ],
+    }
+
+    try:
+        client = OpenAI(api_key=api_key, timeout=timeout)
+        response = client.responses.parse(
+            model=model,
+            input=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
+            ],
+            text_format=RespuestaValidacionSwiftIA,
+        )
+        parsed: RespuestaValidacionSwiftIA = response.output_parsed
+        data = parsed.model_dump()
+        data["estado_ia"] = "lista"
+        return data
+    except Exception as exc:
+        return {
+            "estado_ia": "error",
+            "valido": None,
+            "resumen": f"No fue posible validar el Swift con IA: {exc}",
+            "problemas": [],
+            "sugerencias": [],
+        }

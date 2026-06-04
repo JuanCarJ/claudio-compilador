@@ -1,0 +1,17 @@
+// Entrega final: valido y genera Swift
+funcion entero doble(entero n) hacer
+    retornar n * 2
+fin_funcion
+
+sea entero LIMITE = 4
+var entero acumulado = 0
+
+para i desde 1 hasta LIMITE paso 1 hacer
+    var entero valor = doble(i)
+    acumulado = acumulado + valor
+    imprimir(valor)
+fin_para
+
+si acumulado > 0 entonces
+    imprimir(acumulado)
+fin_si
