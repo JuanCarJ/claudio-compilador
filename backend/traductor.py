@@ -248,7 +248,20 @@ def _traducir_linea(linea: str) -> str:
 def _traducir_expresion(expr: str) -> str:
     """Traduce una expresión de Claudio a Swift."""
     expr = expr.strip()
+    return _traducir_fuera_de_cadenas(expr)
 
+
+def _traducir_fuera_de_cadenas(expr: str) -> str:
+    """Aplica reglas de expresion sin modificar literales de cadena."""
+    partes = re.split(r'("(?:\\.|[^"\\])*")', expr)
+    return ''.join(
+        parte if parte.startswith('"') and parte.endswith('"') else _traducir_segmento_expresion(parte)
+        for parte in partes
+    )
+
+
+def _traducir_segmento_expresion(expr: str) -> str:
+    """Traduce operadores y literales en un segmento que no es cadena."""
     # Operadores lógicos: 'y', 'o', 'no' son palabras reservadas en Claudio
     # Reemplazar solo cuando están rodeadas de espacios (contexto de operador)
     expr = re.sub(r'\s+y\s+', ' && ', expr)

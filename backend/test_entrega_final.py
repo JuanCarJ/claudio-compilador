@@ -6,6 +6,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from main import app
+from traductor import traducir_claudio_a_swift
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -41,6 +42,15 @@ class EntregaFinalTests(unittest.TestCase):
         self.assertGreater(len(data["mapeo"]), 0)
         self.assertGreater(len(data["tabla_simbolos"]), 0)
         self.assertEqual("no_disponible", data["validacion_ia"]["estado_ia"])
+
+    def test_operadores_logicos_no_se_traducen_dentro_de_cadenas(self):
+        swift = traducir_claudio_a_swift(
+            'imprimir("x es menor o igual y no cambia")\n'
+            'var booleano ok = verdadero y no falso o falso'
+        )
+
+        self.assertIn('print("x es menor o igual y no cambia")', swift)
+        self.assertIn("var ok: Bool = true && !false || false", swift)
 
     def test_error_semantico_bloquea_swift(self):
         res = self.post_final("caso_semantico.claudio")
