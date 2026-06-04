@@ -134,20 +134,46 @@ function AIStatus({ validation }: { validation?: SwiftAIValidation | null }) {
 
   return (
     <section
-      className="shrink-0 border-t px-3 py-2 text-xs"
+      className="shrink-0 border-t px-4 py-3 text-sm"
       style={{
-        borderColor: "var(--color-border)",
-        background: "linear-gradient(90deg, rgba(203,166,247,.08), rgba(166,227,161,.045))",
+        borderColor: "rgba(166,227,161,.24)",
+        background:
+          "linear-gradient(135deg, rgba(166,227,161,.12), rgba(203,166,247,.13) 48%, rgba(137,180,250,.09))",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,.055)",
       }}
     >
-      <div className="flex items-center gap-2 font-semibold" style={{ color }}>
-        <Icon className="size-3.5" />
-        Validacion IA Swift
-        <span className="ml-auto rounded px-1.5 py-px font-mono text-[0.6rem]" style={{ backgroundColor: "rgba(255,255,255,.05)", color: "var(--color-muted)" }}>
+      <div className="flex flex-wrap items-center gap-2 font-semibold" style={{ color }}>
+        <span
+          className="flex size-8 items-center justify-center rounded-md"
+          style={{ backgroundColor: "rgba(166,227,161,.12)", border: "1px solid rgba(166,227,161,.30)" }}
+        >
+          <Icon className="size-4.5" />
+        </span>
+        <span className="text-base">Validacion IA Swift</span>
+        <span
+          className="rounded-md px-2 py-1 text-[0.62rem] uppercase tracking-wide"
+          style={{
+            backgroundColor: "rgba(203,166,247,.13)",
+            border: "1px solid rgba(203,166,247,.24)",
+            color: "var(--token-keyword)",
+          }}
+        >
+          Revision destino
+        </span>
+        <span className="ml-auto rounded-md px-2 py-1 font-mono text-[0.68rem]" style={{ backgroundColor: "rgba(255,255,255,.065)", border: "1px solid rgba(255,255,255,.08)", color: "var(--color-text)" }}>
           {validation.estado_ia}
         </span>
       </div>
-      <p className="mt-1" style={{ color: "var(--color-text)" }}>{validation.resumen}</p>
+      <p
+        className="mt-2 rounded-md px-3 py-2 leading-relaxed"
+        style={{
+          backgroundColor: "rgba(12,14,24,.36)",
+          border: "1px solid rgba(166,227,161,.13)",
+          color: "var(--color-text)",
+        }}
+      >
+        {validation.resumen}
+      </p>
       {(validation.problemas.length > 0 || validation.sugerencias.length > 0) && (
         <div className="mt-2 grid gap-2 lg:grid-cols-2">
           {validation.problemas.length > 0 && (
@@ -385,8 +411,16 @@ export function SwiftView({
 
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-2">
         <section className="flex min-h-0 flex-col border-r" style={{ borderColor: "var(--color-border)" }}>
-          <div className="flex shrink-0 items-center gap-2 border-b px-3 py-1.5 text-[0.68rem] font-semibold uppercase" style={{ borderColor: "var(--color-border)", color: "var(--token-keyword)" }}>
-            <Layers3 className="size-3.5" />
+          <div
+            className="flex shrink-0 items-center gap-2 border-b px-3 py-2 text-[0.74rem] font-bold uppercase tracking-wide"
+            style={{
+              borderColor: "rgba(137,180,250,.24)",
+              background: "linear-gradient(90deg, rgba(137,180,250,.13), rgba(137,180,250,.035))",
+              color: "var(--token-keyword)",
+              boxShadow: "inset 0 -1px 0 rgba(137,180,250,.10)",
+            }}
+          >
+            <Layers3 className="size-4" />
             Claudio origen
           </div>
           <ScrollArea className="min-h-0 flex-1">
@@ -408,10 +442,18 @@ export function SwiftView({
         </section>
 
         <section className="flex min-h-0 flex-col" style={{ backgroundColor: "rgba(249,226,175,.025)" }}>
-          <div className="flex shrink-0 items-center gap-2 border-b px-3 py-1.5 text-[0.68rem] font-semibold uppercase" style={{ borderColor: "var(--color-border)", color: "var(--color-warning)" }}>
-            <FileCode2 className="size-3.5" />
+          <div
+            className="flex shrink-0 items-center gap-2 border-b px-3 py-2 text-[0.74rem] font-bold uppercase tracking-wide"
+            style={{
+              borderColor: "rgba(249,226,175,.27)",
+              background: "linear-gradient(90deg, rgba(249,226,175,.14), rgba(166,227,161,.045))",
+              color: "var(--color-warning)",
+              boxShadow: "inset 0 -1px 0 rgba(249,226,175,.10)",
+            }}
+          >
+            <FileCode2 className="size-4" />
             Swift destino
-            <span className="ml-auto rounded px-1.5 py-px text-[0.58rem] font-mono" style={{ backgroundColor: "rgba(249,226,175,.10)", border: "1px solid rgba(249,226,175,.24)", color: "var(--color-warning)" }}>
+            <span className="ml-auto rounded-md px-2 py-1 text-[0.6rem] font-mono" style={{ backgroundColor: "rgba(249,226,175,.14)", border: "1px solid rgba(249,226,175,.30)", color: "var(--color-warning)" }}>
               generado
             </span>
           </div>
@@ -436,7 +478,7 @@ export function SwiftView({
 
       {showTrace && (
         <section className="max-h-48 shrink-0 border-t" style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-surface)" }}>
-          <div className="flex shrink-0 items-center gap-2 border-b px-3 py-1.5 text-[0.68rem] font-semibold uppercase" style={{ borderColor: "var(--color-border)", color: "var(--color-muted)" }}>
+          <div className="flex shrink-0 items-center gap-2 border-b px-3 py-2 text-[0.72rem] font-bold uppercase tracking-wide" style={{ borderColor: "rgba(203,166,247,.22)", background: "linear-gradient(90deg, rgba(203,166,247,.11), rgba(255,255,255,.02))", color: "var(--token-keyword)" }}>
             <GitCompareArrows className="size-3.5" />
             Detalle SDT aplicado
           </div>
